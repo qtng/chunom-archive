@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>What's new</title>
+  <link rel="stylesheet" href="https://qatt.org/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://qatt.org/css/site.css">
+  <script src="https://qatt.org/js/navigation.js"></script>
+  <style>
+    :root { --ink: #2b2118; --accent: #a8362a; --paper: #f7efdc; --line: #e4d9c0; --muted: #7b6c58; }
+    body { margin: 0; background: var(--paper); color: var(--ink); }
+    /* the header of the pages of qatt.org and the Chunom site (.hero): the look of the theme "classic"; other themes override it */
+    .hero {
+      background:
+        radial-gradient(60rem 22rem at 50% -6rem, rgba(168, 54, 42, .10), transparent 70%),
+        linear-gradient(180deg, var(--paper) 0%, #fffdf8 100%);
+      border-bottom: 1px solid #e8dcc0;
+      color: var(--ink);
+    }
+    .hero h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: clamp(2.2rem, 7vw, 3.6rem); letter-spacing: .01em; }
+    .hero .han { color: var(--accent); font-size: 1.25rem; letter-spacing: .5em; padding-left: .5em; font-family: var(--font-cjk), serif; }
+    .hero .lead { max-width: 38rem; color: #4a3d30; }
+    @media (max-width: 575.98px) { .hero .han { letter-spacing: .3em; } }
+    main { max-width: 44rem; margin: 0 auto; padding: 0 1rem 2rem; }
+    .card-box { margin: 0 0 1rem; padding: 1rem 1.2rem; background: #fffdf8; border: 1px solid var(--line); border-radius: .7rem; box-shadow: 0 .35rem 1rem rgba(60, 40, 20, .14); }
+    .card-box .date { color: var(--muted); font-size: .9rem; }
+    .card-box h2 { font-size: 1.3rem; margin: .1rem 0 .6rem; }
+    .card-box ul { margin: 0; padding-left: 1.2rem; }
+    .card-box li + li { margin-top: .4rem; }
+  </style>
+</head>
+<body>
+<header class="hero pt-4 pt-sm-5 pb-4 mb-4">
+  <div class="container text-center">
+    <div class="han mb-2">更新</div>
+    <h1 class="mb-3" data-vi="Có gì mới">What's new</h1>
+    <p class="lead mx-auto mb-0" data-vi="Những thay đổi của Chunom.org.">Changes to Chunom.org.</p>
+  </div>
+</header>
+<main>
+  <article class="card-box">
+    <div class="date" data-vi="15 tháng 11, 2026">15 November 2026</div>
+    <h2 data-vi="Gợi ý chữ Nôm tốt hơn khi gõ">Better Chữ Nôm suggestions while you type</h2>
+    <ul>
+      <li data-vi="Không cần gõ dấu nữa. Gõ nuoc là thấy ngay 渃 nước; gõ nam hiện cùng lúc nam, năm, nằm, nấm…">You no longer have to type the marks. Type nuoc and 渃 nước appears at once; nam shows nam, năm, nằm, nấm … together.</li>
+      <li data-vi="d cũng tìm ra đ: gõ duong hiện cả dương và đường.">d also finds đ: duong shows dương and đường.</li>
+      <li data-vi="Gõ dấu đến đâu, danh sách thu hẹp đến đó: nươc chỉ còn nước, nắm chỉ còn nắm. Dấu thanh đặt ở đâu cũng được: hoà và hòa cho cùng kết quả.">Every mark you type narrows the list: nươc keeps only nước, nắm only nắm. The tone can be written anywhere in the word: hoà and hòa give the same suggestions.</li>
+      <li data-vi="Thứ tự: từ viết đúng như đã gõ lên đầu, từ ngắn trước từ dài, rồi những chữ bạn hay chọn hoặc có giải nghĩa, sau đó theo bảng chữ cái.">Order: words written exactly as you typed come first, then shorter before longer, then characters you choose often or that have a meaning, then alphabetical.</li>
+      <li data-vi="Áp dụng ở mọi nơi bạn gõ chữ Nôm.">Works wherever you type Chữ Nôm.</li>
+    </ul>
+  </article>
+</main>
+</body>
+</html>
