@@ -4,6 +4,9 @@
 	new DictionaryViewer(config, element)   config: see dictionaries.js
 	URL hash = displayed page, e.g. #123 or #-3 (same as the old chunom.org pages), optionally with the box of a glyph: #123@x0,y0,x1,y1
 	?q=<headword> (without a page in the hash): opens the page of that word, as the search does
+	config.glyphs (Bonet): the characters found on the pages (data/bonet-chars.json, their readings data/bonet-readings.json, the readings
+	that the IME does not have data/bonet-new.json): every character is a faint spot on the scan (a click opens the detail popup of
+	js/detail.js), "Show characters" frames them all, the strip "On this page" lists them, and the search takes a character too
 */
 
 import { COLLATORS } from './collate.js';
@@ -25,6 +28,10 @@ const SWIPE_MAX_TILT = 10; // degrees, reached once the finger has travelled the
 const TURN_SWIPE = { outTravel: 0.6, outTilt: SWIPE_MAX_TILT, outMs: 260, inTravel: 0.35, inTilt: SWIPE_MAX_TILT / 2, inMs: 280 };
 const TURN_FLIP = { outTravel: 0.12, outTilt: 0, outMs: 140, inTravel: 0.12, inTilt: 0, inMs: 200, maxPx: 70 }; // buttons, arrow keys
 const WIDE = '(min-width: 1200px)'; // sidebar instead of tabs; keep in sync with dict.css
+const isHan = ch => /[\p{Script=Han}\u{F0000}-\u{FFFFD}]/u.test(ch);
+const t = (en, vi) => window.Lang ? Lang.t(en, vi) : en;
+/** a text that the translation of navigation.js switches (data-vi) */
+const tr = (en, vi, props = {}) => { const s = el('span', { textContent: en, ...props }); s.dataset.vi = vi; return s; };
 
 const store = {
 	get(key) { try { return localStorage.getItem(`dict:${key}`); } catch { return null; } },
@@ -64,12 +71,16 @@ export class DictionaryViewer {
 		this.query = this.hashPage() == null ? new URLSearchParams(location.search).get('q')?.trim() : null; // ?q=<headword>: open the page of a word (overview of the dictionaries), not when the address names a page
 		this.mark = this.hashMark(); // the glyph to highlight ({ page, box }), from a link of the detail popup
 		this.markScroll = true; // scroll the mark into view once, when its page is shown
+		this.glyphs = null; // config.glyphs: { index: char -> places, byPage: page -> [{ ch, box, readings, read, isNew }] }
+		this.found = null; // a character searched for: { ch, places, i }
 
 		this.build();
 		this.setZoom(this.zoom);
 		this.setNight(this.night);
 		this.setTelex(store.get('telex') != '0');
+		if (this.config.glyphs) this.setShowGlyphs(store.get('glyphs') == '1');
 		this.bind();
+		if (this.config.glyphs) this.loadGlyphs();
 		this.loadIndex();
 		this.showTab('pages');
 		this.go(this.startPage(), 'replace');
@@ -116,11 +127,25 @@ export class DictionaryViewer {
 		ui.zoomLabel = el('span', { className: 'btn btn-quiet disabled dict-zoom-label' });
 		ui.night = el('button', { type: 'button', className: 'btn btn-quiet', title: 'Invert page colours (N)', ariaLabel: 'Invert page colours' }, el('i', { className: 'bi bi-moon-stars' }));
 		ui.tools = el('div', { className: 'btn-group dict-tools' }, ui.zoomOut, ui.zoomLabel, ui.zoomIn, ui.night);
+		if (c.glyphs) {
+			ui.showGlyphs = el('button', { type: 'button', className: 'btn btn-quiet', title: 'Show the characters found (C)', ariaLabel: 'Show the characters found' }, el('i', { className: 'bi bi-bounding-box-circles' }));
+			ui.showGlyphs.dataset.viTitle = 'Hiện các chữ đã tìm (C)';
+			ui.tools.append(ui.showGlyphs);
+			ui.search.placeholder = 'Search a word or 字';
+			ui.search.dataset.viPlaceholder = 'Tìm từ hoặc 字';
+		}
 
 		const toolbar = el('div', { className: 'dict-toolbar' },
 			el('div', { className: 'd-flex flex-wrap gap-2 align-items-center py-2' }, ui.searchForm, ui.pager, ui.tools));
 
 		ui.hint = el('div', { className: 'dict-hint text-secondary small', role: 'status', ariaLive: 'polite' });
+		// a character searched for: where it is (1 of 3) and arrows to its other places
+		ui.found = el('div', { className: 'dict-found small', hidden: true },
+			ui.foundText = el('span'),
+			ui.foundPrev = el('button', { type: 'button', className: 'btn btn-sm btn-quiet btn-pill', ariaLabel: 'Previous place' }, el('i', { className: 'bi bi-chevron-left' })),
+			ui.foundNext = el('button', { type: 'button', className: 'btn btn-sm btn-quiet btn-pill', ariaLabel: 'Next place' }, el('i', { className: 'bi bi-chevron-right' })));
+		// the characters of the page as text: a click frames one on the scan
+		ui.onPage = el('div', { className: 'dict-onpage', hidden: true });
 
 		ui.img = el('img', { className: 'dict-image', alt: '', draggable: false });
 		ui.spinner = el('div', { className: 'dict-spinner spinner-border text-secondary', role: 'status' }, el('span', { className: 'visually-hidden', textContent: 'Loading…' }));
@@ -128,7 +153,8 @@ export class DictionaryViewer {
 			el('div', { textContent: 'The page image could not be loaded.' }),
 			ui.retry = el('button', { type: 'button', className: 'btn btn-sm btn-outline-danger mt-2', textContent: 'Try again' }));
 		ui.mark = el('div', { className: 'dict-mark', hidden: true, ariaHidden: 'true' }); // the frame around a glyph (#page@x0,y0,x1,y1)
-		ui.sheet = el('div', { className: 'dict-sheet' }, ui.img, ui.mark); // the page at its zoomed width; the mark is placed in % of it
+		ui.spots = el('div', { className: 'dict-spots' }); // the characters found on the page (config.glyphs)
+		ui.sheet = el('div', { className: 'dict-sheet' }, ui.img, ui.spots, ui.mark); // the page at its zoomed width; the mark and the spots are placed in % of it
 		ui.stage = el('div', { className: 'dict-stage' }, ui.sheet); // scrolls sideways when zoomed
 		if (c.stageColor) ui.stage.style.setProperty('--dict-stage-bg', c.stageColor); // a little darker than this dictionary's paper
 		ui.frame = el('div', { className: 'dict-frame' }, ui.stage, ui.spinner, ui.error); // does not scroll: the overlays stay centred on the visible part
@@ -146,7 +172,7 @@ export class DictionaryViewer {
 			tab('pages', 'bi-book', 'Pages'), tab('contents', 'bi-list-ul', 'Contents'));
 
 		ui.panePages = el('div', { className: 'dict-pane', id: 'dict-pane-pages', role: 'tabpanel', ariaLabelledby: 'dict-tab-pages' },
-			toolbar, ui.hint, ui.frame, ui.stageBottom);
+			toolbar, ui.hint, ui.found, ui.onPage, ui.frame, ui.stageBottom);
 		ui.paneContents = el('div', { className: 'dict-pane', id: 'dict-pane-contents', role: 'tabpanel', ariaLabelledby: 'dict-tab-contents' },
 			this.buildContents());
 
@@ -197,6 +223,21 @@ export class DictionaryViewer {
 		ui.zoomIn.onclick = () => this.setZoom(ZOOMS.find(z => z > this.zoomTarget + 0.01) ?? ZOOM_MAX, { animate: true });
 		ui.zoomOut.onclick = () => this.setZoom([...ZOOMS].reverse().find(z => z < this.zoomTarget - 0.01) ?? 1, { animate: true });
 		ui.night.onclick = () => this.setNight(!this.night);
+		if (ui.showGlyphs) ui.showGlyphs.onclick = () => this.setShowGlyphs(!this.showGlyphs);
+		ui.foundPrev.onclick = () => this.showFound(-1);
+		ui.foundNext.onclick = () => this.showFound(1);
+		ui.spots.addEventListener('click', e => {
+			const spot = e.target.closest('.dict-spot');
+			if (!spot) return;
+			const g = this.glyphs.byPage.get(this.page)[spot.dataset.i];
+			this.select(g, false);
+			window.ChunomDetail?.open(g.ch);
+		});
+		ui.onPage.addEventListener('click', e => {
+			const chip = e.target.closest('[data-i]');
+			if (chip) this.select(this.glyphs.byPage.get(this.page)[chip.dataset.i], true);
+			else if (e.target.closest('.dict-copy')) this.copyPage(e.target.closest('.dict-copy'));
+		});
 		ui.img.ondblclick = e => this.setZoom(this.zoom > 1.01 ? 1 : 2, { x: e.clientX, y: e.clientY, animate: true }); // zooms around the tapped point
 
 		ui.pager.onsubmit = e => {
@@ -259,6 +300,7 @@ export class DictionaryViewer {
 		else if (e.key == '+' || e.key == '=') this.ui.zoomIn.click();
 		else if (e.key == '-') this.ui.zoomOut.click();
 		else if (e.key == 'n' || e.key == 'N') this.ui.night.click();
+		else if ((e.key == 'c' || e.key == 'C') && this.ui.showGlyphs) this.ui.showGlyphs.click();
 	}
 
 	/*
@@ -542,6 +584,8 @@ export class DictionaryViewer {
 		if (mode != 'none' && this.hashPage() != page) history[mode == 'push' ? 'pushState' : 'replaceState'](null, '', `#${page}`);
 		if (changed || !ui.img.src) {
 			ui.mark.hidden = true; // until the new page is there
+			ui.spots.replaceChildren();
+			ui.onPage.hidden = true;
 			this.loadImage();
 			if (!keepScroll && !(this.mark?.page == page && this.markScroll)) scrollTo(0, 0); // a page with a new mark scrolls to it instead
 		}
@@ -573,7 +617,7 @@ export class DictionaryViewer {
 				this.turning = false;
 			}
 			this.imageSize = { w: probe.naturalWidth, h: probe.naturalHeight };
-			ui.img.onload = () => this.placeMark(); // after the layout, so that the scroll to the mark finds its place
+			ui.img.onload = () => { this.renderGlyphs(); this.placeMark(); }; // after the layout, so that the scroll to the mark finds its place
 			ui.img.src = url;
 			ui.img.alt = `${c.short}, page ${this.page}`;
 			if (turn) ui.stage.scrollLeft = turn.dir > 0 ? 0 : ui.stage.scrollWidth; // zoomed: next page starts at its left edge, previous page at its right edge
@@ -619,9 +663,13 @@ export class DictionaryViewer {
 		}
 	}
 
-	/** First page whose last headword is not before the query (same rule as the old site) */
+	/** First page whose last headword is not before the query (same rule as the old site); a character (config.glyphs): its first place */
 	search(query, mode) {
 		query = query.trim();
+		const han = Array.from(query).find(isHan);
+		if (han && this.config.glyphs) return this.searchGlyph(han);
+		this.found = null;
+		this.ui.found.hidden = true;
 		if (!query || !this.keys.length) return;
 		const q = this.collate(query);
 		let n = this.keys.findIndex(key => q <= key);
@@ -633,7 +681,8 @@ export class DictionaryViewer {
 
 	attachIme() {
 		if (this.ime || !window.VietIme) return;
-		this.ime = new VietIme(this.ui.search, { candidates: false, telex: store.get('telex') != '0' });
+		// with config.glyphs the Chữ Nôm candidates too: a reading becomes a character, which is then searched for
+		this.ime = new VietIme(this.ui.search, { candidates: !!this.config.glyphs, defer: true, telex: store.get('telex') != '0' });
 		this.setTelex(store.get('telex') != '0');
 	}
 
@@ -643,6 +692,109 @@ export class DictionaryViewer {
 		this.ui.telex.setAttribute('aria-pressed', String(on));
 		this.ui.telexIcon.className = `bi me-1 ${on ? 'bi-check-square-fill' : 'bi-square'}`;
 		this.ime?.update({ telex: on });
+	}
+
+	// ---------- The characters found (config.glyphs) ----------
+
+	async loadGlyphs() {
+		const get = name => fetch(new URL(`data/${name}.json`, import.meta.url)).then(r => r.ok ? r.json() : null).catch(() => null);
+		const [index, readings, fresh] = await Promise.all([get('bonet-chars'), get('bonet-readings'), get('bonet-new')]);
+		if (!index) return;
+		const isNew = new Set((fresh?.readings || []).flatMap(r => r.places.map(p => `${r.char}@${p.join(',')}`)));
+		const at = (kind, ch, page) => (readings?.[kind]?.[ch] || []).find(p => p[0] == page)?.slice(1) || [];
+		const byPage = new Map();
+		for (const [ch, places] of Object.entries(index)) for (const [page, ...box] of places) {
+			const read = at('read', ch, page);
+			const g = { ch, page, box, read: read.length > 0, readings: read.length ? read : at('derived', ch, page), isNew: isNew.has(`${ch}@${page},${box.join(',')}`) };
+			if (!byPage.has(page)) byPage.set(page, []);
+			byPage.get(page).push(g);
+		}
+		// reading order: the left column, then the right one (the middle of the page image), each from the top
+		for (const list of byPage.values()) list.sort((a, b) => (a.box[0] > 711) - (b.box[0] > 711) || a.box[1] - b.box[1]);
+		this.glyphs = { index, byPage };
+		this.renderGlyphs();
+		if (this.ui.search.value && Array.from(this.ui.search.value).some(isHan)) this.search(this.ui.search.value, 'replace');
+	}
+
+	/** the spots on the scan and the strip "On this page", once the image and the index are there */
+	renderGlyphs() {
+		const { ui, glyphs, imageSize: size } = this;
+		if (!glyphs || !size || !ui.img.complete) return;
+		const list = glyphs.byPage.get(this.page) || [];
+		ui.spots.replaceChildren(...list.map((g, i) => {
+			const [x0, y0, x1, y1] = g.box, pad = (x1 - x0) * 0.12;
+			const tip = `${g.ch} ${g.readings.join(' / ')}`.trim();
+			const spot = el('button', { type: 'button', className: 'dict-spot' + (g.isNew ? ' is-new' : ''), ariaLabel: tip });
+			spot.dataset.i = i;
+			spot.dataset.tip = g.isNew ? `${tip} · ${t('new reading', 'âm đọc mới')}` : tip;
+			Object.assign(spot.style, {
+				left: `${(x0 - pad) / size.w * 100}%`, top: `${(y0 - pad) / size.h * 100}%`,
+				width: `${(x1 - x0 + 2 * pad) / size.w * 100}%`, height: `${(y1 - y0 + 2 * pad) / size.h * 100}%`
+			});
+			return spot;
+		}));
+		ui.onPage.hidden = !list.length;
+		if (!list.length) return;
+		ui.onPage.replaceChildren(
+			el('span', { className: 'dict-onpage-label' }, tr('On this page', 'Trên trang này')),
+			...list.map((g, i) => {
+				const chip = el('button', { type: 'button', className: 'dict-chip' + (g.isNew ? ' is-new' : ''), title: g.isNew ? t('A reading that the input method does not have', 'Âm đọc mà bộ gõ chưa có') : (g.read ? t('Read from the scan', 'Đọc từ bản quét') : t('Derived from the headwords of the page', 'Suy ra từ các mục từ của trang')) },
+					el('span', { className: 'han', textContent: g.ch }),
+					g.readings.length ? el('span', { className: 'rd' + (g.read ? '' : ' derived'), textContent: g.readings.join(' / ') }) : '');
+				chip.dataset.i = i;
+				return chip;
+			}),
+			el('button', { type: 'button', className: 'btn btn-sm btn-quiet btn-pill dict-copy', title: t('Copy the characters of this page with their readings', 'Sao chép các chữ của trang này cùng âm đọc') },
+				el('i', { className: 'bi bi-copy' })));
+	}
+
+	/** frame a character on the scan (and in the address, to share it); scroll: bring it into view */
+	select(g, scroll) {
+		this.mark = { page: g.page, box: g.box };
+		this.markScroll = scroll;
+		if (g.page == this.page) this.placeMark();
+		else this.go(g.page, 'push');
+		history.replaceState(null, '', `#${g.page}@${g.box.join(',')}`);
+	}
+
+	copyPage(button) {
+		const text = (this.glyphs.byPage.get(this.page) || []).map(g => `${g.ch}\t${g.readings.join(' / ')}`).join('\n');
+		navigator.clipboard?.writeText(text).then(() => {
+			const icon = button.querySelector('i');
+			icon.className = 'bi bi-check2';
+			setTimeout(() => { icon.className = 'bi bi-copy'; }, 1500);
+		}).catch(() => {});
+	}
+
+	searchGlyph(ch) {
+		const { ui } = this;
+		if (!this.glyphs) { ui.found.hidden = true; return; } // searched again once the index is loaded
+		const places = this.glyphs.index[ch] || [];
+		this.found = places.length ? { ch, places, i: 0 } : null;
+		ui.found.hidden = false;
+		ui.foundPrev.hidden = ui.foundNext.hidden = places.length < 2;
+		if (!places.length) { ui.foundText.textContent = t(`${ch} is not in the index (yet).`, `${ch} chưa có trong chỉ mục.`); return; }
+		this.showFound(0);
+	}
+
+	/** the next (1), previous (-1) or same (0) place of the character searched for */
+	showFound(step) {
+		const f = this.found;
+		if (!f) return;
+		f.i = (f.i + step + f.places.length) % f.places.length;
+		const [page, ...box] = f.places[f.i];
+		this.ui.foundText.textContent = f.places.length > 1
+			? t(`${f.ch}: place ${f.i + 1} of ${f.places.length}, page ${page}`, `${f.ch}: chỗ ${f.i + 1} / ${f.places.length}, trang ${page}`)
+			: t(`${f.ch}: page ${page}`, `${f.ch}: trang ${page}`);
+		this.select({ page, box }, true);
+	}
+
+	setShowGlyphs(on) {
+		this.showGlyphs = on;
+		store.set('glyphs', on ? '1' : '0');
+		this.ui.stage.classList.toggle('show-glyphs', on);
+		this.ui.showGlyphs.classList.toggle('active', on);
+		this.ui.showGlyphs.setAttribute('aria-pressed', String(on));
 	}
 
 	// ---------- View settings ----------
