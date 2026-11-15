@@ -235,3 +235,8 @@ body {
 .dict-found { display: flex; align-items: center; justify-content: center; gap: .35rem; padding: 0 0 .4rem; }
 .dict-found[hidden] { display: none; }
 .dict-found .btn[hidden] { display: none; }
+
+/* the candidates of the input method (config.glyphs): the characters found in Bonet with a badge, the others muted */
+.dict-cand-other { opacity: .55; }
+.dict-cand-badge { grid-area: reading; justify-self: end; align-self: end; margin-left: .5em; padding: 0 .45em; border-radius: 1em; font-size: .7em; line-height: 1.5;
+	background: color-mix(in srgb, var(--accent, #c98a12) 18%, transparent); color: var(--accent, #c98a12); white-space: nowrap; }

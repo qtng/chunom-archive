@@ -674,7 +674,22 @@ export class DictionaryViewer {
 	attachIme() {
 		if (this.ime || !window.VietIme) return;
 		// with config.glyphs the Chữ Nôm candidates too: a reading becomes a character, which is then searched for
-		this.ime = new VietIme(this.ui.search, { candidates: !!this.config.glyphs, defer: true, telex: store.get('telex') != '0' });
+		const glyphs = this.config.glyphs && {
+			// the characters found in Bonet first, marked with the number of their places; the others muted
+			candidateHook: items => {
+				const index = this.glyphs?.index;
+				return index ? [...items.filter(it => index[it.glyph]), ...items.filter(it => !index[it.glyph])] : items;
+			},
+			renderItem: (item, i, entry) => {
+				if (!item) return;
+				const places = this.glyphs?.index[item.glyph];
+				if (!places) return entry.classList.add('dict-cand-other'), entry;
+				entry.append(el('span', { className: 'dict-cand-badge', textContent: places.length > 1 ? t(`Bonet ×${places.length}`, `Bonet ×${places.length}`) : 'Bonet',
+					title: t(`In Bonet: page ${places.map(p => p[0]).join(', ')}`, `Trong Bonet: trang ${places.map(p => p[0]).join(', ')}`) }));
+				return entry;
+			}
+		};
+		this.ime = new VietIme(this.ui.search, { candidates: !!this.config.glyphs, defer: true, telex: store.get('telex') != '0', ...glyphs });
 		this.setTelex(store.get('telex') != '0');
 	}
 
