@@ -88,9 +88,10 @@ body {
 .dict-stage.is-zoomed, .dict-stage.is-pinched { touch-action: pan-x pan-y; } /* zoomed: panning must work sideways too */
 /* tilting or sliding pages must not widen the scrollable area; zoomed pages scroll sideways */
 .dict-stage:not(.is-zoomed) { overflow-x: hidden; }
+.dict-sheet { position: relative; width: calc(var(--zoom, 1) * 100%); } /* the page at its zoomed width, with the mark on it */
 .dict-image {
 	display: block;
-	width: calc(var(--zoom, 1) * 100%);
+	width: 100%;
 	max-width: none;
 	height: auto;
 	background: #fff;
@@ -104,6 +105,23 @@ body {
 .dict-stage.is-inverted .dict-image { filter: invert(1) hue-rotate(180deg); background: #111; }
 .dict-stage.is-loading .dict-image { opacity: .35; }
 .dict-image:not([src]) { visibility: hidden; min-height: 60vh; }
+/* The mark around a glyph (#page@x0,y0,x1,y1, from the detail popup): placed in % of the page by viewer.js; it pulses three times when it appears.
+   It hides while the page is dragged or turns (the image is moved by a transform then) and while the next page loads. */
+.dict-mark {
+	position: absolute;
+	border: 3px solid var(--cinnabar, #a8362a);
+	border-radius: .4rem;
+	background: color-mix(in srgb, var(--cinnabar, #a8362a) 12%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, #fff 70%, transparent);
+	pointer-events: none;
+	transition: opacity .15s;
+}
+.dict-mark[hidden] { display: none; }
+.dict-mark.is-new { animation: dict-mark-pulse .7s ease-in-out 3; }
+@keyframes dict-mark-pulse { 50% { transform: scale(1.35); } }
+@media (prefers-reduced-motion: reduce) { .dict-mark.is-new { animation: none; } }
+.dict-image[style*="translate"] ~ .dict-mark, .dict-stage.is-loading .dict-mark { opacity: 0; }
+.dict-stage.is-inverted .dict-mark { box-shadow: 0 0 0 3px color-mix(in srgb, #000 60%, transparent); }
 
 .dict-spinner { position: absolute; top: 40vh; left: 50%; margin: -1rem 0 0 -1rem; display: none; }
 .dict-stage.is-loading ~ .dict-spinner { display: block; }

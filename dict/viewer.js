@@ -2,7 +2,7 @@
 	Viewer for scanned dictionaries: page images, headword search, contents, zoom.
 
 	new DictionaryViewer(config, element)   config: see dictionaries.js
-	URL hash = displayed page, e.g. #123 or #-3 (same as the old chunom.org pages)
+	URL hash = displayed page, e.g. #123 or #-3 (same as the old chunom.org pages), optionally with the box of a glyph: #123@x0,y0,x1,y1
 */
 
 import { COLLATORS } from './collate.js';
@@ -60,6 +60,8 @@ export class DictionaryViewer {
 		this.turnTarget = null; // page the turn is heading to while the old page is still sliding out
 		this.pivot = { x: 0, y: 0 }; // where the finger holds the page (relative to the image); it tilts around this point
 		this.searchTimer = null;
+		this.mark = this.hashMark(); // the glyph to highlight ({ page, box }), from a link of the detail popup
+		this.markScroll = true; // scroll the mark into view once, when its page is shown
 
 		this.build();
 		this.setZoom(this.zoom);
@@ -120,7 +122,9 @@ export class DictionaryViewer {
 		ui.error = el('div', { className: 'dict-error alert alert-danger', hidden: true },
 			el('div', { textContent: 'The page image could not be loaded.' }),
 			ui.retry = el('button', { type: 'button', className: 'btn btn-sm btn-outline-danger mt-2', textContent: 'Try again' }));
-		ui.stage = el('div', { className: 'dict-stage' }, ui.img); // scrolls sideways when zoomed
+		ui.mark = el('div', { className: 'dict-mark', hidden: true, ariaHidden: 'true' }); // the frame around a glyph (#page@x0,y0,x1,y1)
+		ui.sheet = el('div', { className: 'dict-sheet' }, ui.img, ui.mark); // the page at its zoomed width; the mark is placed in % of it
+		ui.stage = el('div', { className: 'dict-stage' }, ui.sheet); // scrolls sideways when zoomed
 		if (c.stageColor) ui.stage.style.setProperty('--dict-stage-bg', c.stageColor); // a little darker than this dictionary's paper
 		ui.frame = el('div', { className: 'dict-frame' }, ui.stage, ui.spinner, ui.error); // does not scroll: the overlays stay centred on the visible part
 		ui.stageBottom = el('div', { className: 'dict-pager-bottom d-flex justify-content-between my-3' },
@@ -225,7 +229,10 @@ export class DictionaryViewer {
 
 		addEventListener('hashchange', () => {
 			const n = this.hashPage();
+			const mark = this.hashMark();
+			if (mark) { this.mark = mark; this.markScroll = true; }
 			if (n != null && n != this.page) this.go(n, 'none');
+			else if (mark) this.placeMark();
 			if (n != null) this.showTab('pages');
 		});
 		addEventListener('keydown', e => this.onKey(e));
@@ -474,8 +481,32 @@ export class DictionaryViewer {
 	// ---------- Navigation ----------
 
 	hashPage() {
-		const m = location.hash.match(/^#(-?\d+)$/);
+		const m = location.hash.match(/^#(-?\d+)(?:@\d+,\d+,\d+,\d+)?$/); // @x0,y0,x1,y1: the box of a glyph, see hashMark
 		return m ? Number(m[1]) : null;
+	}
+
+	/** #page@x0,y0,x1,y1 (a link of the detail popup): the box of a glyph in pixels of the page image, to be highlighted */
+	hashMark() {
+		const m = location.hash.match(/^#(-?\d+)@(\d+),(\d+),(\d+),(\d+)$/);
+		return m ? { page: Number(m[1]), box: m.slice(2).map(Number) } : null;
+	}
+
+	/** Shows the mark when its page is shown (size of the page image from loadImage); the first time it is scrolled into the middle of the screen. */
+	placeMark() {
+		const { ui, mark, imageSize: size } = this;
+		if (!mark || mark.page != this.page || !size) { ui.mark.hidden = true; return; }
+		const [x0, y0, x1, y1] = mark.box, pad = (x1 - x0) * 0.3;
+		Object.assign(ui.mark.style, {
+			left: `${(x0 - pad) / size.w * 100}%`, top: `${(y0 - pad) / size.h * 100}%`,
+			width: `${(x1 - x0 + 2 * pad) / size.w * 100}%`, height: `${(y1 - y0 + 2 * pad) / size.h * 100}%`
+		});
+		ui.mark.hidden = false;
+		ui.mark.classList.remove('is-new');
+		if (!this.markScroll) return;
+		this.markScroll = false;
+		void ui.mark.offsetWidth; // restart the pulse
+		ui.mark.classList.add('is-new');
+		requestAnimationFrame(() => ui.mark.scrollIntoView({ block: 'center', inline: 'center', behavior: this.reducedMotion() ? 'auto' : 'smooth' }));
 	}
 
 	startPage() {
@@ -505,8 +536,9 @@ export class DictionaryViewer {
 		store.set(`${c.id}:page`, page);
 		if (mode != 'none' && this.hashPage() != page) history[mode == 'push' ? 'pushState' : 'replaceState'](null, '', `#${page}`);
 		if (changed || !ui.img.src) {
+			ui.mark.hidden = true; // until the new page is there
 			this.loadImage();
-			if (!keepScroll) scrollTo(0, 0);
+			if (!keepScroll && !(this.mark?.page == page && this.markScroll)) scrollTo(0, 0); // a page with a new mark scrolls to it instead
 		}
 	}
 
@@ -535,6 +567,8 @@ export class DictionaryViewer {
 				ui.img.style.transition = ui.img.style.transform = ui.img.style.opacity = '';
 				this.turning = false;
 			}
+			this.imageSize = { w: probe.naturalWidth, h: probe.naturalHeight };
+			ui.img.onload = () => this.placeMark(); // after the layout, so that the scroll to the mark finds its place
 			ui.img.src = url;
 			ui.img.alt = `${c.short}, page ${this.page}`;
 			if (turn) ui.stage.scrollLeft = turn.dir > 0 ? 0 : ui.stage.scrollWidth; // zoomed: next page starts at its left edge, previous page at its right edge
