@@ -63,7 +63,12 @@
     <div class="sub" lang="fr">Dictionnaire Annamite-Français</div>
     <div class="body">
       <p class="mt-2 mb-3">J.F.M. Génibrel, Saigon 1898. <span id="genibrel-pages"></span> The headwords in Quốc Ngữ are in alphabetical order; the search opens the page of a word.</p>
-      <a class="btn btn-cinnabar btn-pill" href="/chunom/dict/genibrel.html"><i class="bi bi-book me-1"></i><span data-vi="Mở từ điển">Open the dictionary</span></a>
+      <a class="btn btn-cinnabar btn-pill mb-3" href="/chunom/dict/genibrel.html"><i class="bi bi-book me-1"></i><span data-vi="Mở từ điển">Open the dictionary</span></a>
+      <form class="find" role="search" data-dict="genibrel">
+        <label class="form-label small text-secondary" for="find-genibrel" data-vi="Một từ Quốc Ngữ (Enter mở trang của từ) hoặc một chữ Nôm (gõ âm đọc rồi chọn chữ)">A word in Quốc Ngữ (Enter opens its page) or a Chữ Nôm character (type its reading, then choose the character)</label>
+        <input class="form-control" id="find-genibrel" type="search" autocomplete="off" enterkeyhint="search" placeholder="an, nước, 安 …">
+        <div class="hits" aria-live="polite"></div>
+      </form>
     </div>
   </section>
 
@@ -82,10 +87,10 @@
         <a class="btn btn-cinnabar btn-pill" href="/chunom/dict/bonet.html"><i class="bi bi-book me-1"></i><span data-vi="Mở từ điển">Open the dictionary</span></a>
         <a class="btn btn-quiet btn-pill" href="/chunom/dict/bonet-chars.html"><i class="bi bi-grid-3x3-gap me-1"></i><span data-vi="Tất cả các chữ">All characters</span></a>
       </div>
-      <form class="find" role="search" id="find">
-        <label class="form-label small text-secondary" for="find-input" data-vi="Tìm chữ (gõ âm đọc, rồi chọn chữ)">Find a character (type its reading, then choose the character)</label>
-        <input class="form-control" id="find-input" type="search" autocomplete="off" enterkeyhint="search" placeholder="an, nước, 安 …">
-        <div class="hits" id="hits" aria-live="polite"></div>
+      <form class="find" role="search" data-dict="bonet">
+        <label class="form-label small text-secondary" for="find-bonet" data-vi="Một từ Quốc Ngữ (Enter mở trang của từ) hoặc một chữ Nôm (gõ âm đọc rồi chọn chữ)">A word in Quốc Ngữ (Enter opens its page) or a Chữ Nôm character (type its reading, then choose the character)</label>
+        <input class="form-control" id="find-bonet" type="search" autocomplete="off" enterkeyhint="search" placeholder="an, nước, 安 …">
+        <div class="hits" aria-live="polite"></div>
       </form>
       <p class="small text-secondary mt-3 mb-0" data-vi="Chỉ mục đang được làm: một số chữ chưa có.">The index is a work in progress: some characters are still missing.</p>
     </div>
@@ -117,53 +122,64 @@
     document.getElementById('bonet-numbers').hidden = false;
   }
 
-  const input = document.getElementById('find-input');
-  const hits = document.getElementById('hits');
   const isHan = ch => /[\p{Script=Han}\u{F0000}-\u{FFFFD}]/u.test(ch);
   const el = (tag, props = {}, ...children) => {
     const node = Object.assign(document.createElement(tag), props);
     node.append(...children);
     return node;
   };
+  const viewer = id => `/chunom/dict/${id}.html`;
 
-  // one row per different character in the field
-  function show() {
-    const typed = [...new Set(Array.from(input.value).filter(isHan))];
-    hits.replaceChildren(...typed.map(ch => {
-      const seen = new Set();
-      const own = (index[ch] || []).filter(p => !seen.has(p[0]) && seen.add(p[0]));
-      const button = el('button', { type: 'button', className: 'ch', textContent: ch, title: Lang.t('Details', 'Chi tiết') });
-      button.addEventListener('click', () => window.ChunomDetail?.open(ch));
-      const list = own.length
-        ? el('div', { className: 'pages' }, ...own.map(([page, ...box]) =>
-            el('a', { href: `/chunom/dict/bonet.html#${page}@${box.join(',')}`, textContent: `${Lang.t('p.', 'tr.')} ${page}` })))
-        : notIndexed(ch);
-      return el('div', { className: 'hit' }, button, list);
-    }));
-  }
-
-  // a character that the index does not have (yet) may still be in the book: its readings (of the IME, which has every character
-  // of dict.csv) as links to the page of that headword, to look for it there
+  // the readings of a character (of the IME, which has every character of dict.csv); loaded once, only when a character is asked for
   let imeLoad = null;
-  function notIndexed(ch) {
-    if (window.VietIme && !imeLoad) imeLoad = VietIme.load().then(show); // once, only when such a character is asked for
-    const readings = [...new Set((window.VietIme?.lookupGlyph(ch) || []).filter(e => e.glyph === ch).map(e => e.reading.toLowerCase()))];
-    const box = el('div', { className: 'none' }, Lang.t('Not found in the scan automatically yet. ', 'Chưa tự động tìm thấy trong bản quét. '));
+  function readingsOf(ch) {
+    if (window.VietIme && !imeLoad) imeLoad = VietIme.load().then(() => finds.forEach(f => f.show()));
+    return [...new Set((window.VietIme?.lookupGlyph(ch) || []).filter(e => e.glyph === ch).map(e => e.reading.toLowerCase()))];
+  }
+  // its readings as links to the page of that headword, to look for the character there
+  function byReading(id, ch, prefix) {
+    const readings = readingsOf(ch);
+    const box = el('div', { className: 'none' }, prefix);
     if (readings.length) box.append(Lang.t('Look it up by its reading: ', 'Tra theo âm đọc: '), ...readings.flatMap((r, i) => [i ? ' · ' : '',
-      el('a', { href: `/chunom/dict/bonet.html?q=${encodeURIComponent(r)}`, textContent: r })]).filter(Boolean));
-    else box.append(el('a', { href: '/chunom/dict/bonet.html', textContent: Lang.t('Open the dictionary', 'Mở từ điển') }));
+      el('a', { href: `${viewer(id)}?q=${encodeURIComponent(r)}`, textContent: r })]).filter(Boolean));
+    else box.append(Lang.t('No reading known. ', 'Chưa biết âm đọc. '), el('a', { href: viewer(id), textContent: Lang.t('Open the dictionary', 'Mở từ điển') }));
     return box;
   }
-  input.addEventListener('input', show);
-  document.getElementById('find').addEventListener('submit', e => { e.preventDefault(); show(); });
-  document.addEventListener('langchange', show);
 
-  // Telex and the Chữ Nôm candidates of chunom.org: a reading becomes a character
-  const attach = () => {
-    if (!window.VietIme || input.ime) return;
-    input.ime = new VietIme(input, { defer: true, returnSelect: true });
-  };
-  if (window.VietIme) attach(); else window.addEventListener('load', attach);
+  // the search field of a dictionary: a word in Quốc Ngữ opens its page in the viewer (Enter), every character gets a row:
+  // Bonet: its pages of the index (the scan opens with the glyph framed), else its readings; Génibrel: its readings
+  const finds = [...document.querySelectorAll('form[data-dict]')].map(form => {
+    const id = form.dataset.dict;
+    const input = form.querySelector('input');
+    const hits = form.querySelector('.hits');
+    const row = ch => {
+      const button = el('button', { type: 'button', className: 'ch', textContent: ch, title: Lang.t('Details', 'Chi tiết') });
+      button.addEventListener('click', () => window.ChunomDetail?.open(ch));
+      let list;
+      if (id === 'bonet') {
+        const seen = new Set();
+        const own = (index[ch] || []).filter(p => !seen.has(p[0]) && seen.add(p[0]));
+        list = own.length
+          ? el('div', { className: 'pages' }, ...own.map(([page, ...box]) =>
+              el('a', { href: `${viewer(id)}#${page}@${box.join(',')}`, textContent: `${Lang.t('p.', 'tr.')} ${page}` })))
+          : byReading(id, ch, Lang.t('Not found in the scan automatically yet. ', 'Chưa tự động tìm thấy trong bản quét. '));
+      } else list = byReading(id, ch, '');
+      return el('div', { className: 'hit' }, button, list);
+    };
+    const show = () => hits.replaceChildren(...[...new Set(Array.from(input.value).filter(isHan))].map(row));
+    input.addEventListener('input', show);
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const word = input.value.trim();
+      if (word && !Array.from(word).some(isHan)) location.href = `${viewer(id)}?q=${encodeURIComponent(word)}`;
+      else show();
+    });
+    // Telex and the Chữ Nôm candidates of chunom.org: a reading becomes a character (a click or its number); Enter keeps the word
+    const attach = () => { if (window.VietIme && !input.ime) input.ime = new VietIme(input, { defer: true }); };
+    if (window.VietIme) attach(); else window.addEventListener('load', attach);
+    return { show };
+  });
+  document.addEventListener('langchange', () => finds.forEach(f => f.show()));
 </script>
 </body>
 </html>
