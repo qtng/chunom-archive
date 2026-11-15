@@ -193,7 +193,7 @@ class ChunomDetail {
       .catch(() => ({}));
   }
 
-  /** The readings of a character on a page of Bonet, derived from the headwords of the page { char: [[page, reading, …], …] } (dict/data/bonet-readings.json, loaded once). */
+  /** The readings of a character on a page of Bonet, read from the scan or derived from the headwords of the page { read: { char: [[page, reading, …], …] }, derived: { the same } } (dict/data/bonet-readings.json, loaded once). */
   static loadBonetReadings() {
     return ChunomDetail.#bonetReadings ??= fetch(new URL('../dict/data/bonet-readings.json', BASE))
       .then(response => response.ok ? response.json() : {})
@@ -740,16 +740,17 @@ class ChunomDetail {
     if (hex) this.attachStrokeOrder(glyphBox, mainNom);   // only for a single character, not for a compound
     // The pages of the scanned Bonet dictionary (1899) with this character as a headword; the link carries the box of the glyph on the page image (#<page>@x0,y0,x1,y1)
     const bonetBox = el('div', { className: 'bonet-pages' });
-    // with the readings derived from the headwords of the page (muted, a guess)
+    // with the readings of the character there (muted; read from the scan upright, derived from the headwords of the page in italics, a guess)
     if (hex) Promise.all([ChunomDetail.loadBonet(), ChunomDetail.loadBonetReadings()]).then(([index, derived]) => {
       const places = (index[mainNom] || []).filter((place, i, all) => all.findIndex(other => other[0] === place[0]) === i);   // one link per page
       if (!places.length || this.currentNom !== mainNom) return;
-      const readingsAt = page => (derived[mainNom] || []).find(p => p[0] === page)?.slice(1) || [];
+      const at = (kind, page) => (derived[kind]?.[mainNom] || []).find(p => p[0] === page)?.slice(1) || [];
       bonetBox.replaceChildren('Bonet 1899: ', ...places.flatMap(([page, ...box], i) => {
-        const readings = readingsAt(page);
+        const read = at('read', page), readings = read.length ? read : at('derived', page);
+        const title = read.length ? ['Read from the scan', 'Đọc từ bản quét'] : ['Derived from the headwords of the page', 'Suy ra từ các mục từ của trang'];
         return [i ? ', ' : '',
           el('a', { href: `${SITE}chunom/dict/bonet.html#${page}@${box.join(',')}`, className: 'text-reset', title: `Bonet 1899, page ${page}`, textContent: `p. ${page}` }),
-          readings.length ? el('span', { className: 'text-body-secondary fst-italic', title: window.Lang ? Lang.t('Derived from the headwords of the page', 'Suy ra từ các mục từ của trang') : 'Derived from the headwords of the page', textContent: ` ${readings.join(' / ')}` }) : ''].filter(Boolean);
+          readings.length ? el('span', { className: 'text-body-secondary' + (read.length ? '' : ' fst-italic'), title: window.Lang ? Lang.t(...title) : title[0], textContent: ` ${readings.join(' / ')}` }) : ''].filter(Boolean);
       }));
     });
     this.modalBody.replaceChildren(

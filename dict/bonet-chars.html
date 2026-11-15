@@ -43,6 +43,7 @@
     .place-menu a, .place-menu button { padding: .3rem .6rem; border-radius: .3rem; text-align: left; border: 0; background: none; color: inherit; font: inherit; }
     .place-menu a:hover, .place-menu button:hover, .place-menu a:focus-visible { background: color-mix(in srgb, currentColor 10%, transparent); }
     .place-menu .rd { display: inline-block; color: var(--muted); font-style: italic; margin-left: .4em; }
+    .place-menu .rd.read { font-style: normal; }
     .place-menu button { border-top: 1px solid var(--line); border-radius: 0 0 .3rem .3rem; margin-top: .2rem; color: var(--muted); }
   </style>
 </head>
@@ -62,7 +63,7 @@
   <nav class="letters" id="letters" aria-label="Letters"></nav>
   <div id="groups"><p class="text-center text-secondary" data-vi="Đang tải…">Loading…</p></div>
   <p class="small text-secondary text-center mt-3" data-vi="Chỉ mục đang được làm: một số chữ chưa có.">The index is a work in progress: some characters are still missing.</p>
-  <p class="small text-secondary text-center" data-vi="Âm đọc bên cạnh số trang được suy ra từ các mục từ của trang ấy, chưa đọc từ bản quét.">The readings next to the page numbers are derived from the headwords of the page, not read from the scan.</p>
+  <p class="small text-secondary text-center" data-vi="Âm đọc bên cạnh số trang: chữ đứng là đọc từ bản quét, chữ nghiêng là suy ra từ các mục từ của trang ấy.">The readings next to the page numbers: upright ones were read from the scan, italic ones are derived from the headwords of the page.</p>
 </main>
 <script type="module">
   // the index { char: [[page, x0, y0, x1, y1], …] }, the last headword of every page (displayed page 1 = item 0) and the readings derived
@@ -104,8 +105,9 @@
     return node;
   };
   const pageWord = () => Lang.t('p.', 'tr.');
-  const readingsAt = (ch, page) => ((derived || {})[ch] || []).find(p => p[0] === page)?.slice(1) || [];
-  const placeText = (ch, page) => [`${pageWord()} ${page}`, readingsAt(ch, page).join(' / ')].filter(Boolean).join(' ');
+  const at = (kind, ch, page) => (derived?.[kind]?.[ch] || []).find(p => p[0] === page)?.slice(1) || [];
+  const readingsAt = (ch, page) => { const r = at('read', ch, page); return r.length ? { read: true, list: r } : { read: false, list: at('derived', ch, page) }; };
+  const placeText = (ch, page) => [`${pageWord()} ${page}`, readingsAt(ch, page).list.join(' / ')].filter(Boolean).join(' ');
   const scan = ([page, ...box]) => `/chunom/dict/bonet.html#${page}@${box.join(',')}`; // the viewer frames the glyph
   document.getElementById('letters').replaceChildren(...[...groups.keys()].map(letter =>
     el('a', { href: `#l-${letter}`, textContent: letter })));
@@ -132,8 +134,8 @@
     const details = el('button', { type: 'button', textContent: Lang.t('Details', 'Chi tiết') });
     details.addEventListener('click', () => { closeMenu(); window.ChunomDetail?.open(item.ch); });
     menu.replaceChildren(...item.places.map(place => {
-      const readings = readingsAt(item.ch, place[0]);
-      return el('a', { href: scan(place) }, `${pageWord()} ${place[0]}`, ...(readings.length ? [el('span', { className: 'rd', textContent: readings.join(' / ') })] : []));
+      const r = readingsAt(item.ch, place[0]);
+      return el('a', { href: scan(place) }, `${pageWord()} ${place[0]}`, ...(r.list.length ? [el('span', { className: 'rd' + (r.read ? ' read' : ''), textContent: r.list.join(' / ') })] : []));
     }), details);
     const r = link.getBoundingClientRect();
     menu.hidden = false;

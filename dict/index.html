@@ -45,6 +45,7 @@
     .hit .ch:hover { color: var(--accent); }
     .hit .pages a { margin-right: .7rem; white-space: nowrap; }
     .hit .pages .rd { display: inline-block; color: var(--muted); font-style: italic; margin-left: .3em; }
+    .hit .pages .rd.read { font-style: normal; }
     .hit .none { color: var(--muted); font-size: .9rem; }
   </style>
 </head>
@@ -111,11 +112,14 @@
   setPages('genibrel-pages', DICTIONARIES.genibrel);
   setPages('bonet-pages', DICTIONARIES.bonet);
 
-  // the index of the characters of Bonet: { char: [[page, x0, y0, x1, y1], …] }, and the readings derived from the headwords of a page { char: [[page, reading, …], …] }
-  const [index, derived] = await Promise.all(['bonet-chars', 'bonet-readings'].map(name =>
+  // the index of the characters of Bonet: { char: [[page, x0, y0, x1, y1], …] }, and the readings of a character on a page, read from the scan or derived
+  // from the headwords of the page { read: { char: [[page, reading, …], …] }, derived: { the same } }
+  const [index, readings] = await Promise.all(['bonet-chars', 'bonet-readings'].map(name =>
     fetch(`/chunom/dict/data/${name}.json`).then(r => r.ok ? r.json() : {}).catch(() => ({}))));
   const derivedTitle = () => Lang.t('Derived from the headwords of the page', 'Suy ra từ các mục từ của trang');
-  const readingsAt = (ch, page) => (derived[ch] || []).find(p => p[0] === page)?.slice(1) || [];
+  const readTitle = () => Lang.t('Read from the scan', 'Đọc từ bản quét');
+  const at = (kind, ch, page) => (readings[kind]?.[ch] || []).find(p => p[0] === page)?.slice(1) || [];
+  const readingsAt = (ch, page) => { const r = at('read', ch, page); return r.length ? { read: true, list: r } : { read: false, list: at('derived', ch, page) }; };
   const chars = Object.keys(index);
   if (chars.length) {
     const places = Object.values(index).flat();
@@ -166,8 +170,8 @@
         list = own.length
           ? el('div', { className: 'pages' }, ...own.map(([page, ...box]) => {
               const link = el('a', { href: `${viewer(id)}#${page}@${box.join(',')}`, textContent: `${Lang.t('p.', 'tr.')} ${page}` });
-              const readings = readingsAt(ch, page);
-              if (readings.length) link.append(el('span', { className: 'rd', textContent: readings.join(' / '), title: derivedTitle() }));
+              const r = readingsAt(ch, page);
+              if (r.list.length) link.append(el('span', { className: 'rd' + (r.read ? ' read' : ''), textContent: r.list.join(' / '), title: r.read ? readTitle() : derivedTitle() }));
               return link;
             }))
           : byReading(id, ch, Lang.t('Not found in the scan automatically yet. ', 'Chưa tự động tìm thấy trong bản quét. '));
