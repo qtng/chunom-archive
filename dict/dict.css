@@ -215,6 +215,13 @@ body {
 
 /* the characters of the page as text */
 .dict-onpage { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem .35rem; padding: .1rem 0 .55rem; }
+/* phone: one row that scrolls sideways, the readings cut short */
+@media (max-width: 767.98px) {
+	.dict-onpage { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; margin-inline: -12px; padding-inline: 12px; }
+	.dict-onpage::-webkit-scrollbar { display: none; }
+	.dict-chip { flex: none; max-width: 8.5rem; }
+	.dict-chip .rd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+}
 .dict-onpage[hidden] { display: none; }
 .dict-hint.is-empty { display: none; }
 .dict-chip {
@@ -228,4 +235,3 @@ body {
 .dict-found { display: flex; align-items: center; justify-content: center; gap: .35rem; padding: 0 0 .4rem; }
 .dict-found[hidden] { display: none; }
 .dict-found .btn[hidden] { display: none; }
-.dict-copy { color: var(--muted); align-self: stretch; align-items: center; }
