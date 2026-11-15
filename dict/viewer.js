@@ -2,7 +2,7 @@
 	Viewer for scanned dictionaries: page images, headword search, contents, zoom.
 
 	new DictionaryViewer(config, element)   config: see dictionaries.js
-	URL hash = displayed page, e.g. #123 or #-3 (same as the old chunom.org pages)
+	URL hash = displayed page, e.g. #123 or #-3 (same as the old chunom.org pages), optionally with the box of a glyph: #123@x0,y0,x1,y1
 */
 
 import { COLLATORS } from './collate.js';
@@ -474,7 +474,7 @@ export class DictionaryViewer {
 	// ---------- Navigation ----------
 
 	hashPage() {
-		const m = location.hash.match(/^#(-?\d+)$/);
+		const m = location.hash.match(/^#(-?\d+)(?:@\d+,\d+,\d+,\d+)?$/); // @x0,y0,x1,y1: the box of a glyph in pixels of the page image (from the detail popup), for a highlight later
 		return m ? Number(m[1]) : null;
 	}
 

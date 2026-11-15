@@ -185,7 +185,7 @@ class ChunomDetail {
       .catch(err => { ChunomDetail.#data = null; throw err; });
   }
 
-  /** The pages of the Bonet dictionary per character { char: [displayed page, …] } (dict/data/bonet-chars.json, loaded once; {} when it cannot be loaded). */
+  /** The places of a character in the Bonet dictionary { char: [[displayed page, x0, y0, x1, y1], …] } (dict/data/bonet-chars.json, loaded once; {} when it cannot be loaded). */
   static loadBonet() {
     return ChunomDetail.#bonet ??= fetch(new URL('../dict/data/bonet-chars.json', BASE))
       .then(response => response.ok ? response.json() : {})
@@ -730,13 +730,13 @@ class ChunomDetail {
     const glyphBox = el('div', { className: 'd-flex align-items-center justify-content-center rounded border glyph-box px-2', title: 'Click to copy glyph', 'data-copy': mainNom }, glyph);
 
     if (hex) this.attachStrokeOrder(glyphBox, mainNom);   // only for a single character, not for a compound
-    // The pages of the scanned Bonet dictionary (1899) with this character as a headword
+    // The pages of the scanned Bonet dictionary (1899) with this character as a headword; the link carries the box of the glyph on the page image (#<page>@x0,y0,x1,y1)
     const bonetBox = el('div', { className: 'bonet-pages' });
     if (hex) ChunomDetail.loadBonet().then(index => {
-      const pages = index[mainNom];
-      if (!pages || this.currentNom !== mainNom) return;
-      bonetBox.replaceChildren('Bonet 1899: ', ...pages.flatMap((page, i) => [i ? ', ' : '',
-        el('a', { href: `${SITE}chunom/dict/bonet.html#${page}`, className: 'text-reset', title: `Bonet 1899, page ${page}`, textContent: `p. ${page}` })].filter(Boolean)));
+      const places = (index[mainNom] || []).filter((place, i, all) => all.findIndex(other => other[0] === place[0]) === i);   // one link per page
+      if (!places.length || this.currentNom !== mainNom) return;
+      bonetBox.replaceChildren('Bonet 1899: ', ...places.flatMap(([page, ...box], i) => [i ? ', ' : '',
+        el('a', { href: `${SITE}chunom/dict/bonet.html#${page}@${box.join(',')}`, className: 'text-reset', title: `Bonet 1899, page ${page}`, textContent: `p. ${page}` })].filter(Boolean)));
     });
     this.modalBody.replaceChildren(
       el('div', { className: 'd-flex align-items-start gap-4 mb-4 p-2' },
