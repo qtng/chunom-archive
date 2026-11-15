@@ -3,6 +3,7 @@
 
 	new DictionaryViewer(config, element)   config: see dictionaries.js
 	URL hash = displayed page, e.g. #123 or #-3 (same as the old chunom.org pages), optionally with the box of a glyph: #123@x0,y0,x1,y1
+	?q=<headword> (without a page in the hash): opens the page of that word, as the search does
 */
 
 import { COLLATORS } from './collate.js';
@@ -60,6 +61,7 @@ export class DictionaryViewer {
 		this.turnTarget = null; // page the turn is heading to while the old page is still sliding out
 		this.pivot = { x: 0, y: 0 }; // where the finger holds the page (relative to the image); it tilts around this point
 		this.searchTimer = null;
+		this.query = this.hashPage() == null ? new URLSearchParams(location.search).get('q')?.trim() : null; // ?q=<headword>: open the page of a word (overview of the dictionaries), not when the address names a page
 		this.mark = this.hashMark(); // the glyph to highlight ({ page, box }), from a link of the detail popup
 		this.markScroll = true; // scroll the mark into view once, when its page is shown
 
@@ -607,6 +609,11 @@ export class DictionaryViewer {
 			this.collate = collate;
 			ui.search.disabled = false;
 			this.updateHint();
+			if (this.query) {
+				ui.search.value = this.query;
+				this.search(this.query, 'replace');
+				this.query = null;
+			}
 		} catch {
 			ui.search.placeholder = 'Search unavailable';
 		}

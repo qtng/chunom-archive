@@ -137,16 +137,32 @@
       const list = own.length
         ? el('div', { className: 'pages' }, ...own.map(([page, ...box]) =>
             el('a', { href: `/chunom/dict/bonet.html#${page}@${box.join(',')}`, textContent: `${Lang.t('p.', 'tr.')} ${page}` })))
-        : el('div', { className: 'none', textContent: Lang.t('Not in the index (yet).', 'Chưa có trong chỉ mục.') });
+        : notIndexed(ch);
       return el('div', { className: 'hit' }, button, list);
     }));
+  }
+
+  // a character that the index does not have (yet) may still be in the book: its readings (of the IME, which has every character
+  // of dict.csv) as links to the page of that headword, to look for it there
+  let imeLoad = null;
+  function notIndexed(ch) {
+    if (window.VietIme && !imeLoad) imeLoad = VietIme.load().then(show); // once, only when such a character is asked for
+    const readings = [...new Set((window.VietIme?.lookupGlyph(ch) || []).filter(e => e.glyph === ch).map(e => e.reading.toLowerCase()))];
+    const box = el('div', { className: 'none' }, Lang.t('Not found in the scan automatically yet. ', 'Chưa tự động tìm thấy trong bản quét. '));
+    if (readings.length) box.append(Lang.t('Look it up by its reading: ', 'Tra theo âm đọc: '), ...readings.flatMap((r, i) => [i ? ' · ' : '',
+      el('a', { href: `/chunom/dict/bonet.html?q=${encodeURIComponent(r)}`, textContent: r })]).filter(Boolean));
+    else box.append(el('a', { href: '/chunom/dict/bonet.html', textContent: Lang.t('Open the dictionary', 'Mở từ điển') }));
+    return box;
   }
   input.addEventListener('input', show);
   document.getElementById('find').addEventListener('submit', e => { e.preventDefault(); show(); });
   document.addEventListener('langchange', show);
 
   // Telex and the Chữ Nôm candidates of chunom.org: a reading becomes a character
-  const attach = () => { if (window.VietIme && !input.ime) input.ime = new VietIme(input, { defer: true, returnSelect: true }); };
+  const attach = () => {
+    if (!window.VietIme || input.ime) return;
+    input.ime = new VietIme(input, { defer: true, returnSelect: true });
+  };
   if (window.VietIme) attach(); else window.addEventListener('load', attach);
 </script>
 </body>
