@@ -9,7 +9,7 @@
 		telex [true]           Telex input; 'compound' only converts tones and đ (no aa, ee, oo, w)
 		candidates [true]      Chữ Nôm candidate list for the word before the caret
 		defer [false]          true: load dictionaries on first focus; 'wait': also read-only while loading
-		dictionaries           JSON dictionaries ({dict: "|reading:glyph,glyph|…", defs: {readingGlyph: definition}})
+		dictionaries           JSON dictionaries ({order, sources: {key: {items, defs}}} (ime_dict.json), or the old {dict: "|reading:glyph,glyph|…", defs: {readingGlyph: definition}})
 		fontList [[]]          fonts for Nôm glyphs, also applied to the field while candidates are on
 		returnSelect [false]   Enter selects the first candidate
 		spaceSelect [false]    Space selects the first candidate
@@ -212,7 +212,7 @@
 	// ---------- Dictionaries ----------
 
 	const BASE = new URL('./', document.currentScript?.src || location.href); // the folder js/ of chunom
-	const DICTIONARIES = [new URL('generated_chars.json', BASE).href, new URL('base_chars.json', BASE).href];
+	const DICTIONARIES = [new URL('ime_dict.json', BASE).href];
 	// typed punctuation → ideographic forms, plus a few symbols
 	const BUILTIN = "|-_ideographicHyphen:－|&_ideographicAmpersand:＆|\"_ideographicQuoteEnd:」|\"_ideographicQuoteStart:「|\"_ideographicDoubleQuote:＂|<_ideographicBracket:〈|>_ideographicBracket:〉|<_ideographicBracket:《|>_ideographicBracket:》|[_ideographicBracket:【|]_ideographicBracket:】|(_ideographicBracket:（|)_ideographicBracket:）|__ideographicSpace:　|._ideographicDot:。|,_ideographicList:、|?_ideographicQuestionMark:？|!_ideographicExclamationMark:！|=_unknownCharacterSymbol:〓|;_ideographicSemicolon:；|*_ideographicAsterisk:＊|/_ideographicSlash:／|:_ideographicColon:：|__backslash:\\|__iterationMark:ヌ,ㇶ,〻,ゝ,々|__unknownSymbol:〓|__nhayMark:𡿨|\\_plus:+|\\_iterationMark:ヌ,ㇶ,〻,ゝ,々|\\_unknownSymbol:〓|\\_nhayMark:𡿨|\\_idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|__idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|%_idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|nháy:𡿨,口,亇,厶|nhayMark:𡿨,口,亇,厶|geta:〓|iteration:ヌ,ㇶ,〻,ゝ,々|nôm:喃";
 
@@ -266,7 +266,12 @@
 				.then(r => r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${url}`)))
 				.catch(e => console.warn('VietIme: dictionary not loaded', e))))
 				.then(data => {
-					for (const d of data) if (d) this.add(d.dict || '', d.defs);
+					for (const d of data) {
+						if (!d) continue;
+						// {order: [key, …], sources: {key: {items, defs?}}}: the sources in their order (the order of the candidates); else the old {dict, defs}
+						if (d.sources) for (const key of d.order || Object.keys(d.sources)) { const s = d.sources[key]; if (s) this.add(s.items || '', s.defs); }
+						else this.add(d.dict || '', d.defs);
+					}
 					return this;
 				});
 		}
