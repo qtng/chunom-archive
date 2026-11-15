@@ -29,6 +29,10 @@
     .card-box ul { margin: 0; padding-left: 1.2rem; }
     .card-box li + li { margin-top: .4rem; }
     .card-box .links { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+    .card-box .covers { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: .8rem; }
+    .card-box .covers a { display: block; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; box-shadow: 0 .25rem .7rem rgba(60, 40, 20, .18); }
+    .card-box .covers img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .4s; }
+    .card-box .covers a:hover img { transform: scale(1.03); }
   </style>
 </head>
 <body>
@@ -70,6 +74,24 @@
     </ul>
     <div class="links">
       <a class="btn btn-quiet btn-pill" href="/chunom/pa/"><i class="bi bi-type"></i> <span data-vi="Học chữ PA trong một giờ">PA in one hour</span></a>
+    </div>
+  </article>
+  <article class="card-box">
+    <div class="date" data-vi="3 tháng 11, 2026">3 November 2026</div>
+    <h2 data-vi="Phông chữ mới phủ trọn bộ chữ Nôm">New fonts with complete Chữ Nôm coverage</h2>
+    <ul>
+      <li data-vi="Lần đầu tiên có những phông chữ hiện đại phủ trọn bộ chữ Nôm: QATT Pen, Migoi, Celluloid và Phong Thảo.">For the first time, modern typefaces cover Chữ Nôm completely: QATT Pen, Migoi, Celluloid and Phong Thảo.</li>
+      <li data-vi="QATT Pen được thiết kế riêng cho Chunom.org, nhưng ai cũng được dùng.">QATT Pen was designed especially for Chunom.org, but everyone may use it.</li>
+      <li data-vi="Xem và tải các phông chữ trong danh mục phông chữ. Bạn cũng có thể dùng chúng cho trang web của mình, được cung cấp từ CDN phông chữ của chúng tôi.">Look at the fonts and download them in the font catalogue. You can use them on your own website too, served from our font CDN.</li>
+    </ul>
+    <div class="covers">
+      <a href="/chunom/fonts/#pen"><img src="/chunom/fonts/pen/cover.webp" width="800" height="446" alt="QATT Pen" loading="lazy"></a>
+      <a href="/chunom/fonts/#migoi"><img src="/chunom/fonts/migoi/cover.webp" width="800" height="446" alt="Migoi" loading="lazy"></a>
+      <a href="/chunom/fonts/#celluloid"><img src="/chunom/fonts/celluloid/cover.webp" width="800" height="446" alt="Celluloid" loading="lazy"></a>
+      <a href="/chunom/fonts/#phongthao"><img src="/chunom/fonts/phongthao/cover.webp" width="800" height="446" alt="Phong Thảo" loading="lazy"></a>
+    </div>
+    <div class="links">
+      <a class="btn btn-quiet btn-pill" href="/chunom/fonts/"><i class="bi bi-fonts"></i> <span data-vi="Phông chữ">Fonts</span></a>
     </div>
   </article>
   <article class="card-box">
