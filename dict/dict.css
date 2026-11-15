@@ -186,19 +186,19 @@ body {
 #app .dict-contents .small a { color: var(--cinnabar); }
 .dict-contents dt { color: var(--cinnabar); }
 
-/* The characters found on the page (config.glyphs, Bonet): faint spots that are visible but do not cover the print; a stronger frame
-   on hover and with "Show characters"; amber where Bonet's reading is not in the input method. The tip shows the character and its reading. */
+/* The characters found on the page (config.glyphs, Bonet): light frames that are visible but do not cover the print, stronger
+   on hover; amber where Bonet's reading is not in the input method. The tip shows the character and its reading. */
 .dict-spots { position: absolute; inset: 0; pointer-events: none; transition: opacity .15s; }
 .dict-image[style*="translate"] ~ .dict-spots, .dict-stage.is-loading .dict-spots { opacity: 0; }
 .dict-spot {
 	--spot: var(--cinnabar, #a8362a);
 	position: absolute; padding: 0; pointer-events: auto; cursor: pointer;
-	border: 0; border-bottom: 2px solid color-mix(in srgb, var(--spot) 45%, transparent);
+	border: 1.5px solid color-mix(in srgb, var(--spot) 45%, transparent);
 	border-radius: .25rem;
-	background: color-mix(in srgb, var(--spot) 7%, transparent);
+	background: color-mix(in srgb, var(--spot) 6%, transparent);
 }
 .dict-spot.is-new { --spot: #c98a12; }
-.dict-spot:hover, .dict-spot:focus-visible, .show-glyphs .dict-spot {
+.dict-spot:hover, .dict-spot:focus-visible {
 	border: 2px solid color-mix(in srgb, var(--spot) 80%, transparent);
 	background: color-mix(in srgb, var(--spot) 10%, transparent);
 	outline: none;
@@ -214,9 +214,9 @@ body {
 .dict-stage.is-inverted .dict-spot.is-new { --spot: #ffd27a; }
 
 /* the characters of the page as text */
-.dict-onpage { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .35rem; padding: .1rem 0 .55rem; }
+.dict-onpage { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem .35rem; padding: .1rem 0 .55rem; }
 .dict-onpage[hidden] { display: none; }
-.dict-onpage-label { font-size: .8rem; color: var(--muted); margin-right: .2rem; }
+.dict-hint.is-empty { display: none; }
 .dict-chip {
 	display: inline-flex; align-items: baseline; gap: .3rem; padding: .05rem .55rem .1rem; border-radius: 99px;
 	border: 1px solid var(--line, #e4d9c0); background: color-mix(in srgb, currentColor 3%, transparent); color: inherit; font-size: .88rem;
@@ -225,6 +225,7 @@ body {
 .dict-chip .han { font-family: var(--font-cjk, "QATT Pen"), serif; font-size: 1.15rem; line-height: 1.2; }
 .dict-chip .rd.derived { font-style: italic; color: var(--muted); }
 .dict-chip.is-new { border-color: #d9a441; background: color-mix(in srgb, #d9a441 14%, transparent); }
-.dict-found { display: flex; align-items: center; gap: .35rem; padding: 0 0 .4rem; }
+.dict-found { display: flex; align-items: center; justify-content: center; gap: .35rem; padding: 0 0 .4rem; }
 .dict-found[hidden] { display: none; }
 .dict-found .btn[hidden] { display: none; }
+.dict-copy { color: var(--muted); align-self: stretch; align-items: center; }
