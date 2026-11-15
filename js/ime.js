@@ -27,7 +27,7 @@
 	Methods:
 		ime.update({ telex: false, candidates: false })
 		VietIme.load()               loads the default dictionaries, returns a promise
-		VietIme.lookup('chữ nôm')    [{glyph, reading, definition}], exact matches first
+		VietIme.lookup('chữ nôm')    [{glyph, reading, definition}], found by the letters without marks ("nuoc" finds "nước"), exact matches first
 		VietIme.lookupGlyph('越')    entries whose glyphs contain the characters
 		VietIme.telex('vieetj')      'việt'
 
@@ -220,14 +220,43 @@
 	const readingOf = key => key.replace(/(\p{Lu})/gu, ' $1').trim().toLowerCase();
 	const isLetter = ch => /[a-zA-Z0-9]/.test(ch) || VIET_LETTERS.has(ch);
 
+	// ---------- The search key of a reading ----------
+	// A reading is found by its letters without any mark ("đ" counts as "d"): "nuoc" finds "nước", "d" finds "đường". A mark that was typed
+	// ("ư", "â", "đ") must be on the same letter, a tone that was typed in the same syllable (wherever it is written: "hoà" = "hòa").
+	// In the order of the Telex keys: đường = đuong + d w w + f (the letters, the marks of the letters in their order, the tone of the syllable).
+	// Equal candidates are sorted by the letters, then the marks in the order of the alphabet (a ă â, d đ, e ê, o ô ơ, u ư),
+	// then the tones (ngang, sắc, huyền, hỏi, ngã, nặng).
+	const TONE = { '́': 1, '̀': 2, '̉': 3, '̃': 4, '̣': 5 };
+	const VARIANT = { 'ă': 1, 'â': 2, 'đ': 1, 'ê': 1, 'ô': 1, 'ơ': 2, 'ư': 1 };
+	// { fold: the letters without marks, letters: [each letter without its tone], syl: [the syllable of each letter], tones: [the tone of each syllable],
+	//   toneAt: [[letter, tone], …], sort } (a new syllable starts at a capital: "chữNôm")
+	function searchKey(text) {
+		let fold = '', marks = '', s = 0;
+		const letters = [], syl = [], tones = [0], toneAt = [];
+		for (const ch of text.normalize('NFC')) {
+			if (letters.length && /\p{Lu}/u.test(ch)) { s++; tones.push(0); }
+			const d = ch.normalize('NFD');
+			let mods = '', tone = 0;
+			for (const c of d.slice(1)) if (TONE[c]) tone = TONE[c]; else mods += c;
+			const letter = (d[0] + mods).normalize('NFC').toLowerCase();
+			if (tone) { tones[s] = tone; toneAt.push([letters.length, tone]); }
+			fold += letter == 'đ' ? 'd' : d[0].toLowerCase();
+			marks += VARIANT[letter] || 0;
+			letters.push(letter);
+			syl.push(s);
+		}
+		return { fold, letters, syl, tones, toneAt, sort: fold + '\0' + marks + '\0' + tones.join('') };
+	}
+
 	class Dictionary {
 		constructor(urls) {
 			this.urls = urls;
-			this.entries = new Map(); // lower-case reading → [[reading, glyph], …]
+			this.byFold = new Map();  // letters without marks → [[reading, glyph, number in the order of the data], …]
+			this.info = new Map();    // reading → searchKey(reading)
 			this.byChar = new Map();  // character → [[reading, glyph], …]
 			this.defs = new Map();    // reading + glyph → definition
 			this.pairs = new Set();
-			this.keys = null;         // sorted readings, built on demand
+			this.keys = null;         // the sorted keys of byFold, built on demand
 			this.add(BUILTIN);
 		}
 
@@ -246,12 +275,14 @@
 			for (const entry of dict.replace(/[\r\n]/g, '').split('|')) {
 				const sep = entry.indexOf(':', 1);
 				if (sep < 0) continue;
-				const key = entry.slice(0, sep), lc = key.toLowerCase();
+				const key = entry.slice(0, sep).normalize('NFC');
+				let info = this.info.get(key);
+				if (!info) this.info.set(key, info = searchKey(key));
 				for (const glyph of entry.slice(sep + 1).split(',')) {
 					if (!glyph || this.pairs.has(key + ':' + glyph)) continue;
 					this.pairs.add(key + ':' + glyph);
-					if (!this.entries.has(lc)) this.entries.set(lc, []);
-					this.entries.get(lc).push([key, glyph]);
+					if (!this.byFold.has(info.fold)) this.byFold.set(info.fold, []);
+					this.byFold.get(info.fold).push([key, glyph, this.pairs.size]);
 					for (const ch of new Set(glyph)) {
 						if (!this.byChar.has(ch)) this.byChar.set(ch, []);
 						this.byChar.get(ch).push([key, glyph]);
@@ -262,26 +293,38 @@
 			this.keys = null;
 		}
 
-		// Entries whose reading starts with the (lower-case) prefix: short remainders first, then used and defined ones
+		// The entries that match the typed prefix (see searchKey): first those written exactly as typed so far, then short remainders,
+		// then used and defined ones, then the order of the readings (letters, marks, tones) and of the data; every glyph once, at most 100
 		candidates(prefix) {
-			const keys = this.keys ??= [...this.entries.keys()].sort();
+			const keys = this.keys ??= [...this.byFold.keys()].sort();
+			const t = searchKey(prefix.toLowerCase()), n = t.letters.length;
 			let lo = 0, hi = keys.length;
 			while (lo < hi) {
 				const mid = (lo + hi) >> 1;
-				if (keys[mid] < prefix) lo = mid + 1; else hi = mid;
+				if (keys[mid] < t.fold) lo = mid + 1; else hi = mid;
 			}
-			const list = [], seen = new Set(), usage = getUsage();
-			for (let i = lo; i < keys.length && keys[i].startsWith(prefix); i++) {
-				for (const [key, glyph] of this.entries.get(keys[i])) {
-					if (seen.has(glyph)) continue;
-					seen.add(glyph);
-					const definition = this.defs.get(key + glyph) || '';
-					const used = usage[glyph] || 0;
-					list.push({ glyph, key, head: key.slice(0, prefix.length), remainder: key.slice(prefix.length), definition,
-						score: definition ? (used + 1) * 2 : used, order: list.length });
+			const list = [], usage = getUsage();
+			for (let i = lo; i < keys.length && keys[i].startsWith(t.fold); i++) {
+				for (const [key, glyph, order] of this.byFold.get(keys[i])) {
+					const info = this.info.get(key);
+					let ok = true, exact = true;
+					for (let j = 0; j < n && ok; j++) {
+						if (info.letters[j] != t.letters[j]) { exact = false; if (t.letters[j] != t.fold[j]) ok = false; }   // a typed mark must be there
+					}
+					if (!ok) continue;
+					const typedTone = new Map();
+					for (const [j, tone] of t.toneAt) typedTone.set(info.syl[j], tone);
+					for (const [s, tone] of typedTone) if (info.tones[s] != tone) ok = false;   // a typed tone must be there
+					if (!ok) continue;
+					for (let s = 0; s <= info.syl[n - 1] && exact; s++) if ((typedTone.get(s) || 0) != info.tones[s]) exact = false;
+					const chars = [...key], definition = this.defs.get(key + glyph) || '', used = usage[glyph] || 0;
+					list.push({ glyph, key, head: chars.slice(0, n).join(''), remainder: chars.slice(n).join(''), definition,
+						exact, rest: info.letters.length - n, score: definition ? (used + 1) * 2 : used, sort: info.sort, order });
 				}
 			}
-			return list.sort((a, b) => a.remainder.length - b.remainder.length || b.score - a.score || a.order - b.order).slice(0, 100);
+			list.sort((a, b) => b.exact - a.exact || a.rest - b.rest || b.score - a.score || (a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0) || a.order - b.order);
+			const seen = new Set();
+			return list.filter(c => !seen.has(c.glyph) && seen.add(c.glyph)).slice(0, 100);
 		}
 
 		lookup(word) {
