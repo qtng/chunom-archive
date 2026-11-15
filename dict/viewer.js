@@ -81,8 +81,11 @@ export class DictionaryViewer {
 		const { config: c, root } = this;
 		const ui = this.ui = {};
 
-		// the header of the pages of qatt.org (.hero): the dictionaries as buttons (the open one red), title and subtitle
+		// the header of the pages of qatt.org (.hero): the overview (dict/index.html) and the dictionaries as buttons (the open one red), title and subtitle
+		const all = el('span', { textContent: 'All' });
+		all.dataset.vi = 'Tất cả';
 		const switcher = el('ul', { className: 'list-unstyled d-flex flex-wrap justify-content-center gap-2 mb-3 dict-switch' },
+			el('li', {}, el('a', { className: 'btn btn-sm btn-pill btn-quiet', href: './', title: 'All dictionaries' }, el('i', { className: 'bi bi-grid me-1' }), all)),
 			...Object.values(DICTIONARIES).filter(d => !d.hidden).map(d => el('li', {},
 				el('a', { className: `btn btn-sm btn-pill ${d.id == c.id ? 'btn-cinnabar' : 'btn-quiet'}`, href: `${d.id}.html`, ...(d.id == c.id ? { ariaCurrent: 'page' } : {}), textContent: d.short }))));
 
