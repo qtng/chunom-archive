@@ -38,9 +38,9 @@
     .big b { display: block; font-family: Georgia, serif; font-weight: 400; font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1; color: var(--accent); }
     .big span { font-size: .9rem; color: var(--muted); }
 
-    /* a crop of a scanned page: the image is moved inside a box of the crop's size */
+    /* a crop of a scanned page (img/*.webp, written by the private repository) */
     .crop { position: relative; overflow: hidden; background: #fff; border-radius: .3rem; flex: none; }
-    .crop img { position: absolute; max-width: none; }
+    .crop img { display: block; width: 100%; height: 100%; }
     .scan-frame { border: 1px solid var(--line); border-radius: .4rem; padding: .3rem; background: #fff; }
     /* the anatomy of an entry: labelled boxes over the crop */
     .anatomy { position: relative; width: 100%; }
@@ -123,6 +123,21 @@
     .spell .then { font-weight: 600; font-size: 1.1rem; }
     .spell .now { color: var(--muted); font-size: .88rem; }
 
+    /* the table of the new readings, folded */
+    /* folded: a teaser of the first rows, fading out; open: the whole table in a scroll box */
+    .bonet-new .scroll { position: relative; max-height: 11rem; overflow: hidden; border-top: 1px solid var(--line); }
+    .bonet-new .scroll { -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+    .bonet-new.open .scroll { max-height: min(60vh, 32rem); overflow-y: auto; -webkit-mask-image: none; mask-image: none; }
+    .bonet-new.open #bonet-new-toggle i { transform: rotate(180deg); }
+    .bonet-new table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .bonet-new th { position: sticky; top: 0; background: var(--paper); font-weight: 600; font-size: .78rem; color: var(--muted); text-align: left; padding: .25rem .35rem; }
+    .bonet-new td { padding: .1rem .35rem; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+    .bonet-new .ch { font-family: var(--font-cjk), serif; font-size: 1.35rem; line-height: 1.2; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
+    .bonet-new .ch:hover { color: var(--accent); }
+    .bonet-new .bn { font-weight: 600; white-space: nowrap; }
+    .bonet-new .kn { color: var(--muted); }
+    .bonet-new td:last-child { white-space: nowrap; text-align: right; }
+
     /* who did what */
     .who { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .8rem; }
     .who div { border-left: 3px solid var(--accent); padding: .2rem 0 .2rem .7rem; }
@@ -151,7 +166,7 @@
 
   <section class="card-box" id="book">
     <h2><span class="no">1</span><span data-vi="Cuốn sách">The book</span></h2>
-    <p>In 1899 Jean Bonet published in Paris his <i lang="fr">Dictionnaire annamite-français</i>: two volumes, 951 pages, every word of Vietnamese in the Latin script, with its character in Chữ Nôm and its meaning in French. It shows how Vietnamese was written and read a hundred and twenty years ago.</p>
+    <p>In 1899 Jean Bonet published in Paris his <i lang="fr">Dictionnaire annamite-français</i>: two volumes, 951 pages, every word of Vietnamese in the Latin script, with its character in Chữ Nôm and its meaning in French. It shows how Vietnamese was written and read at the end of the 19th century, when Chữ Nôm was still in use beside Quốc Ngữ.</p>
     <div class="scan-frame">
       <div class="anatomy" id="anatomy"></div>
     </div>
@@ -194,11 +209,12 @@
       <div class="step">
         <h3><i class="bi bi-sort-alpha-down"></i><span data-vi="Dùng thứ tự chữ cái">Use the alphabet</span></h3>
         <p>The book is alphabetical, so a character on a page must have a reading between the first and the last headword of that page<span id="fig-range"></span>. Of tens of thousands of characters only a handful remain.</p>
+        <p class="small muted">Bonet does not sort as dictionaries do today: <i>a, ă, â</i> are one letter, as are <i>o, ô, ơ</i> and <i>u, ư</i>; <i>y</i> stands with <i>i</i>, and <i>đ</i> comes before <i>d</i>. So <i>ăn</i> comes between <i>ầm</i> and <i>anh</i>. The program sorts the way the book does.</p>
         <div class="fig" id="fig-cands"></div>
       </div>
       <div class="step">
         <h3><i class="bi bi-intersect"></i><span data-vi="So sánh hình">Compare the shapes</span></h3>
-        <p>The crop is compared with a drawing of every candidate, stroke direction by stroke direction, and checked once more against all 35,610 characters: is another one even closer?</p>
+        <p>The crop is compared with a drawing of every candidate, stroke direction by stroke direction, and checked once more against more than 35,000 known characters: is another one even closer?</p>
         <div class="fig"><span class="stat" data-n="sure">2,949</span><span class="muted small">placed for sure by the program</span></div>
       </div>
       <div class="step">
@@ -231,7 +247,12 @@
     <h2><span class="no">5</span><span data-vi="Bonet viết khác">What Bonet writes differently</span></h2>
     <p>Next to each character the reading was taken from the book itself: <b><span data-n="owner">1,506</span> places</b> where several readings were possible were decided by hand on the scan. <b><span data-n="newReadings">123</span> readings</b> are not in the input method of chunom.org for that character; <b><span data-n="newSyllables">29</span></b> of them are syllables that no character there has. Some are old spellings, some readings that are no longer used:</p>
     <div class="spell" id="spell"></div>
-    <a class="btn btn-quiet btn-pill mt-3" href="/chunom/dict/#bonet-readings"><i class="bi bi-table me-1"></i><span data-vi="Xem tất cả">See all of them</span></a>
+    <div class="bonet-new mt-4" id="bonet-new">
+      <h3 class="h5 mb-1" style="font-family: Georgia, 'Times New Roman', serif; font-weight: 400"><span data-vi="Tất cả các âm đọc mới">All the new readings</span> (<span data-n="newReadings">123</span>)</h3>
+      <p class="small muted mb-2">The reading in Bonet, the readings known so far, and the page; a few may be a character that the index matched wrongly: the page link shows the place.</p>
+      <div class="scroll" id="t-bonet-new"></div>
+      <div class="text-center mt-3"><button type="button" class="btn btn-cinnabar btn-pill btn-lg px-4" id="bonet-new-toggle" aria-expanded="false"><i class="bi bi-chevron-down me-1"></i><span data-vi="Xem tất cả 123">Show all 123</span></button></div>
+    </div>
   </section>
 
   <section class="card-box" id="who">
@@ -239,8 +260,8 @@
     <p>Neither alone would have got this far. The program did the bulk and knew where it was unsure; an AI read the doubtful crops; a person decided the readings and checked what looked wrong.</p>
     <div class="who">
       <div><i class="bi bi-cpu"></i><b data-n="auto">2,949</b><span>characters placed by the program, with a cross-check</span></div>
-      <div><i class="bi bi-stars"></i><b data-n="ai">3,030</b><span>characters read from the crop by an AI (Claude)</span></div>
-      <div><i class="bi bi-person"></i><b data-n="owner">1,506</b><span>readings decided by hand on the scan</span></div>
+      <div><i class="bi bi-stars"></i><b data-n="ai">3,030</b><span>characters read from the crop by an AI (a large language model)</span></div>
+      <div><i class="bi bi-eye"></i><b data-n="owner">1,506</b><span>readings decided by hand on the scan</span></div>
     </div>
   </section>
 
@@ -249,11 +270,11 @@
     <ul class="open-list">
       <li><b data-n="check">425</b> characters are still unsure, mostly rare ones that no list of candidates has.</li>
       <li><b data-n="badcrop">205</b> crops missed the character, <b data-n="noglyph">481</b> headwords have no character found (many have none in the book).</li>
-      <li>Entries with two characters, and the dictionary of Génibrel (1898).</li>
+      <li>Entries with two characters.</li>
     </ul>
     <div class="d-flex flex-wrap gap-2 mt-3">
       <a class="btn btn-cinnabar btn-pill" href="/chunom/dict/bonet.html"><i class="bi bi-book me-1"></i><span data-vi="Mở từ điển">Open the dictionary</span></a>
-      <a class="btn btn-quiet btn-pill" href="/chunom/dict/bonet-chars.html"><i class="bi bi-grid-3x3-gap me-1"></i><span data-vi="Tất cả các chữ">All characters</span></a>
+      <a class="btn btn-quiet btn-pill" href="/chunom/dict/bonet/chars.html"><i class="bi bi-grid-3x3-gap me-1"></i><span data-vi="Tất cả các chữ">All characters</span></a>
     </div>
   </section>
 
@@ -262,22 +283,18 @@
 <script type="module">
   const el = (tag, props = {}, ...children) => { const n = Object.assign(document.createElement(tag), props); n.append(...children); return n; };
   const fmt = n => n.toLocaleString(window.Lang?.current === 'vi' ? 'vi' : 'en');
-  const scan = page => `/chunom-assets/dict/bonnet/pages/bonnet%20(${page + 39}).webp`; // displayed page -> image of chunom-assets
   const viewer = (page, box) => `/chunom/dict/bonet.html#${page}${box ? '@' + box.join(',') : ''}`;
-  const PAGE_W = 1422; // width of every page image
 
-  /** a box showing [x0, y0, x1, y1] of a page, `height` px high (or `width` px wide) */
-  function crop(page, [x0, y0, x1, y1], { height, width } = {}) {
+  /** a picture of story.json ({ img, crop: [x0, y0, x1, y1] of its page }), `height` px high (or `width` px wide) */
+  function crop({ img, crop: [x0, y0, x1, y1] }, { height, width } = {}) {
     const s = width ? width / (x1 - x0) : height / (y1 - y0);
     const box = el('div', { className: 'crop' });
     box.style.width = `${(x1 - x0) * s}px`; box.style.height = `${(y1 - y0) * s}px`;
-    const img = el('img', { src: scan(page), alt: '', loading: 'lazy', decoding: 'async' });
-    Object.assign(img.style, { width: `${PAGE_W * s}px`, left: `${-x0 * s}px`, top: `${-y0 * s}px` });
-    box.append(img);
+    box.append(el('img', { src: '/chunom/dict/bonet/' + img, alt: '', loading: 'lazy', decoding: 'async' }));
     return box;
   }
 
-  const story = await fetch('/chunom/dict/data/bonet-story.json').then(r => r.json());
+  const story = await fetch('/chunom/dict/bonet/story.json').then(r => r.json());
   const c = story.counts;
   const N = { pages: story.pages.length, headwords: story.headwords, chars: story.chars, ...c, ...story.people,
     newReadings: story.new.readings, newSyllables: story.new.syllables };
@@ -285,11 +302,11 @@
 
   // 1. the anatomy of an entry: page 1, the entry 阿, its labels in % of the crop
   {
-    const R = [30, 1322, 700, 1745], W = R[2] - R[0], H = R[3] - R[1];
+    const R = story.anatomy.crop, W = R[2] - R[0], H = R[3] - R[1];
     const host = document.getElementById('anatomy');
     const draw = () => {
       host.replaceChildren();
-      const w = host.clientWidth, box = crop(1, R, { width: w });
+      const w = host.clientWidth, box = crop(story.anatomy, { width: w });
       host.append(box);
       const mark = ([x0, y0, x1, y1], label, alt, below) => {
         const m = el('div', { className: 'ann' + (alt ? ' alt' : '') });
@@ -315,7 +332,7 @@
     let i = 0, score = 0, played = 0;
     const show = () => {
       const q = story.quiz[i];
-      slot.replaceChildren(crop(q.page, q.crop, { height: Math.min(110, innerWidth / 3.4) }));
+      slot.replaceChildren(crop(q, { height: Math.min(110, innerWidth / 3.4) }));
       verdict.textContent = '';
       cands.replaceChildren(...[...q.cands].map((ch, k) => {
         const b = el('button', { type: 'button', className: 'cand', textContent: ch });
@@ -344,7 +361,7 @@
       const range = document.getElementById('fig-range');
       range.append(Lang.t(` (page ${q.page}: `, ` (trang ${q.page}: `), el('i', { textContent: first[q.page - 1] }), ' … ', el('i', { textContent: first[q.page] }), ')');
     }).catch(() => {});
-    document.getElementById('fig-cands').append(crop(q.page, q.crop, { height: 34 }), el('i', { className: 'bi bi-arrow-right muted' }),
+    document.getElementById('fig-cands').append(crop(q, { height: 34 }), el('i', { className: 'bi bi-arrow-right muted' }),
       ...[...q.cands].map(ch => el('span', { className: 'c' + (ch === q.char ? ' on' : ''), textContent: ch })));
   }
 
@@ -352,13 +369,12 @@
   // found (red; amber dashed: still unsure), drawn one after the other when the page comes into view
   {
     const f = story.figure, host = document.querySelector('#pagefig .pf-img');
-    const ys = [f.rule[1], f.rule[2], ...f.lines.flat().filter((_, i) => i % 3)];
-    const R = [110, Math.min(...ys) - 140, PAGE_W - 30, Math.max(...ys) + 160], W = R[2] - R[0], H = R[3] - R[1]; // the text area of the page
+    const R = f.crop, W = R[2] - R[0], H = R[3] - R[1]; // the text area of the page
     const pct = (x, y) => ({ left: `${(x - R[0]) / W * 100}%`, top: `${(y - R[1]) / H * 100}%` });
     const shape = (cls, style, title) => { const e = el('span', { className: cls, title: title || '' }); Object.assign(e.style, style); return e; };
     let shapes = [];
     const draw = () => {
-      host.replaceChildren(crop(f.page, R, { width: host.clientWidth }));
+      host.replaceChildren(crop(f, { width: host.clientWidth }));
       const top = Math.min(f.rule[1], ...f.lines.map(l => l[1])), bottom = Math.max(f.rule[2], ...f.lines.map(l => l[2]));
       shapes = [
         shape('rule', { ...pct(f.rule[0], top), height: `${(bottom - top) / H * 100}%` }, Lang.t('the rule between the columns', 'đường kẻ giữa hai cột')),
@@ -422,18 +438,30 @@
     document.getElementById('v-pw').textContent = v.probably_wrong; document.getElementById('v-u').textContent = v.unclear;
   }
 
-  // 5. Bonet's spellings: a few examples from the table of the readings that differ
+  // 5. Bonet's spellings: a few examples with their place, and the table of all readings that the IME does not have (in the order of Bonet)
   {
-    const PICK = ['缺', '仍', '凝', '䳂', '悶', '勉'];
-    const data = await fetch('/chunom/dict/data/bonet-new.json').then(r => r.ok ? r.json() : { readings: [] }).catch(() => ({ readings: [] }));
-    const cards = PICK.map(ch => data.readings.find(r => r.char === ch)).filter(Boolean).map(r => {
-      const [page, x0, y0, x1, y1] = r.places[0];
-      const a = el('a', { href: viewer(page, [x0, y0, x1, y1]), title: Lang.t(`Page ${page}`, `Trang ${page}`) }, crop(page, [x0 - 120, y0 - 10, x1 + 8, y1 + 8], { height: 46 }));
-      return el('div', { className: 'card' }, a,
-        el('div', { className: 'then' }, el('span', { className: 'han-font me-2', textContent: r.char }), r.reading),
-        el('div', { className: 'now', textContent: Lang.t('known so far: ', 'đã biết: ') + r.known.slice(0, 4).join(', ') }));
-    });
-    document.getElementById('spell').replaceChildren(...cards);
+    document.getElementById('spell').replaceChildren(...story.spell.map(r => el('div', { className: 'card' },
+      el('a', { href: viewer(r.page, r.box), title: Lang.t(`Page ${r.page}`, `Trang ${r.page}`) }, crop(r, { height: 46 })),
+      el('div', { className: 'then' }, el('span', { className: 'han-font me-2', textContent: r.char }), r.reading),
+      el('div', { className: 'now', textContent: Lang.t('known so far: ', 'đã biết: ') + r.known.join(', ') }))));
+
+    const box = document.getElementById('bonet-new'), toggle = document.getElementById('bonet-new-toggle');
+    toggle.onclick = () => {
+      const open = box.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', open);
+      const t = toggle.querySelector('span'), n = story.new.readings;
+      t.dataset.vi = open ? 'Thu gọn' : `Xem tất cả ${n}`; t.textContent = open ? 'Show fewer' : `Show all ${n}`;
+      document.getElementById('t-bonet-new').scrollTop = 0;
+    };
+    const KNOWN_MAX = 6;   // the known readings shown; the rest in the title
+    const head = el('tr', {}, ...[['Char', 'Chữ'], ['Bonet', 'Bonet'], ['Known', 'Đã biết'], ['Page', 'Trang']].map(([en, vi]) => el('th', {}, (s => (s.dataset.vi = vi, s))(el('span', { textContent: en })))));
+    document.getElementById('t-bonet-new').replaceChildren(el('table', {}, el('thead', {}, head), el('tbody', {}, ...story.new.list.map(r => {
+      const ch = el('button', { type: 'button', className: 'ch', textContent: r.char, title: Lang.t('Details', 'Chi tiết') });
+      ch.addEventListener('click', () => window.ChunomDetail?.open(r.char));
+      const known = r.known.length > KNOWN_MAX ? r.known.slice(0, KNOWN_MAX).join(', ') + ', …' : r.known.join(', ');
+      return el('tr', {}, el('td', {}, ch), el('td', { className: 'bn', textContent: r.reading }), el('td', { className: 'kn', textContent: known || '–', title: r.known.join(', ') }),
+        el('td', {}, ...r.places.flatMap((p, i) => [i ? ' ' : '', el('a', { href: viewer(p[0], p.slice(1)), textContent: p[0] })])));
+    }))));
   }
 </script>
 </body>
