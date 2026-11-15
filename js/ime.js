@@ -7,7 +7,12 @@
 
 	Options:
 		telex [true]           Telex input; 'compound' only converts tones and đ (no aa, ee, oo, w)
-		candidates [true]      Chữ Nôm candidate list for the word before the caret
+		candidates [true]      Chữ Nôm candidate list for the word before the caret; a function is asked every time (e.g. () => !wide())
+		candidateHook          (items, word) => items: change, sort or extend the candidates (also called with word '' for an empty field)
+		renderItem             (item, index, el) => element: el is the entry ime.js would show; return it (changed or not, or nothing),
+		                       another element, or null to leave the candidate out. Called with item null before every new list and when
+		                       the list closes. With the list off (candidates false) ime.js places nothing: the page puts the elements
+		                       where it wants, ime.js still inserts the candidate on a click (no keys, all candidates, not paged)
 		defer [false]          true: load dictionaries on first focus; 'wait': also read-only while loading
 		dictionaries           JSON dictionaries ({order, sources: {key: {items, defs}}} (ime_dict.json), or the old {dict: "|reading:glyph,glyph|…", defs: {readingGlyph: definition}})
 		fontList [[]]          fonts for Nôm glyphs, also applied to the field while candidates are on
@@ -419,6 +424,8 @@
 				returnSelect: false, spaceSelect: false, showDefinitions: true, timeout: 0, ...options };
 			this.dict = dictionaryFor(this.options.dictionaries);
 			this.items = [];
+			this.shown = [];
+			this.next = 0;
 			this.page = 0;
 			this.active = -1;
 			this.saved = Object.fromEntries(Object.keys(TYPING_ATTRIBUTES).map(a => [a, input.getAttribute(a)]));
@@ -451,7 +458,7 @@
 
 		update(options = {}) {
 			Object.assign(this.options, options);
-			const { telex, candidates, defer, fontList } = this.options, input = this.input;
+			const { telex, defer, fontList } = this.options, input = this.input, candidates = this.options.candidates || this.options.renderItem;
 			for (const [a, v] of Object.entries(TYPING_ATTRIBUTES)) {
 				const value = telex ? v : this.saved[a];
 				if (value == null) input.removeAttribute(a); else input.setAttribute(a, value);
@@ -565,13 +572,31 @@
 		}
 
 		refresh() {
-			if (!this.options.candidates || document.activeElement != this.target) return this.hide();
+			const { candidates, candidateHook, renderItem } = this.options;
+			if (!(candidates || renderItem) || document.activeElement != this.target) return this.hide();
 			const current = this.currentWord();
 			// while a mobile keyboard composes, the word is still raw Telex
 			const word = current && (this.composing && this.options.telex ? telexWord(current.word, this.mode) : current.word);
-			this.items = word ? this.dict.candidates(word.toLowerCase()) : [];
-			this.active = -1;
-			this.showPage(0);
+			let items = word ? this.dict.candidates(word.toLowerCase()) : [];
+			if (candidateHook) items = candidateHook(items, word || '') || [];
+			this.hide();
+			this.items = items;
+			this.listed = !!(typeof candidates == 'function' ? candidates() : candidates);
+			if (this.listed) this.showPage(0);
+			else this.render(Infinity);
+		}
+
+		// renders candidates until n are shown (renderItem may leave some out)
+		render(n) {
+			while (this.shown.length < n && this.next < this.items.length) {
+				const item = this.items[this.next++], index = this.shown.length, own = this.option(item, index);
+				const el = this.options.renderItem ? this.options.renderItem(item, index, own) : own;
+				if (el === null) continue;
+				const shown = el || own;
+				shown.addEventListener('mousedown', e => e.preventDefault()); // keep the focus in the field
+				shown.addEventListener('click', () => this.select(index));
+				this.shown.push({ item, el: shown });
+			}
 		}
 
 		get visible() {
@@ -579,10 +604,17 @@
 		}
 
 		showPage(page) {
-			const pages = Math.ceil(this.items.length / 10);
+			this.render((Math.max(0, page) + 1) * 10);
+			const pages = Math.ceil(this.shown.length / 10);
 			if (!pages) return this.hide();
 			this.page = Math.max(0, Math.min(page, pages - 1));
-			this.list.replaceChildren(...this.items.slice(this.page * 10, this.page * 10 + 10).map((item, i) => this.option(item, this.page * 10 + i)));
+			const entries = this.shown.slice(this.page * 10, this.page * 10 + 10).map(s => s.el);
+			entries.forEach((el, i) => {
+				el.id = `${this.list.id}-${this.page * 10 + i}`;
+				el.setAttribute('role', 'option');
+				el.setAttribute('aria-selected', this.page * 10 + i == this.active);
+			});
+			this.list.replaceChildren(...entries);
 			this.list.hidden = false;
 			this.keepOpen();
 			this.place();
@@ -626,7 +658,8 @@
 		}
 
 		setActive(index) {
-			this.active = Math.max(0, Math.min(index, this.items.length - 1));
+			this.render(index + 1);
+			this.active = Math.max(0, Math.min(index, this.shown.length - 1));
 			this.showPage(Math.floor(this.active / 10));
 		}
 
@@ -644,24 +677,19 @@
 			const symbol = item.remainder.startsWith('_'); // "-_ideographicHyphen": show the name
 			const el = document.createElement('div');
 			el.className = 'vietime-option';
-			el.id = `${this.list.id}-${index}`;
-			el.setAttribute('role', 'option');
-			el.setAttribute('aria-selected', index == this.active);
 			const reading = document.createElement('span');
 			reading.className = 'vietime-reading';
 			reading.append(span('vietime-head', symbol ? item.remainder.slice(1) : item.head), span('vietime-remainder', symbol ? '' : item.remainder));
-			el.append(Object.assign(document.createElement('span'), { className: 'vietime-number', textContent: `${(index % 10 + 1) % 10}.` }),
-				Object.assign(document.createElement('span'), { className: 'vietime-glyph', textContent: item.glyph }), reading);
+			if (this.listed) el.append(Object.assign(document.createElement('span'), { className: 'vietime-number', textContent: `${(index % 10 + 1) % 10}.` }));
+			el.append(Object.assign(document.createElement('span'), { className: 'vietime-glyph', textContent: item.glyph }), reading);
 			if (this.options.showDefinitions && item.definition) {
 				el.append(Object.assign(document.createElement('span'), { className: 'vietime-definition', textContent: item.definition.trim(), title: item.definition.trim() }));
 			}
-			el.addEventListener('mousedown', e => e.preventDefault()); // keep the focus in the field
-			el.addEventListener('click', () => this.select(index));
 			return el;
 		}
 
 		select(index) {
-			const item = this.items[Math.min(index, this.items.length - 1)], current = this.currentWord();
+			const item = this.shown[Math.min(index, this.shown.length - 1)]?.item, current = this.currentWord();
 			if (!item || !current) return;
 			this.hide();
 			countUsage(item.glyph);
@@ -677,8 +705,11 @@
 		hide() {
 			clearTimeout(this.idleTimer);
 			this.items = [];
+			this.shown = [];
+			this.next = 0;
 			this.active = -1;
 			this.list.hidden = true;
+			if (this.options.renderItem) this.options.renderItem(null);
 			if (this.input.hasAttribute('aria-expanded')) this.input.setAttribute('aria-expanded', 'false');
 			this.input.removeAttribute('aria-activedescendant');
 		}
