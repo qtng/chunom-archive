@@ -43,9 +43,9 @@
     .b-round  { --b-bg: #f3ece0; --b-ink: #2b2620; --b-accent: #b07a2a; }
     .band { background: var(--b-bg); }
     .closing { max-width: 52rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
-    /* between the bands of the Pen and the others: the covers of Migoi and Celluloid, side by side in 21:9 (the middle of the picture: the names stay whole), with room around them */
+    /* between the bands of the Pen and the others: the covers of Pen, Migoi, Celluloid and Phong Thảo in a grid of 2 × 2, whole (16:9, 800 px wide WebP), with room around them */
     .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; max-width: 60rem; margin: 0 auto; padding: 2rem 1.25rem; }
-    .pair a { display: block; aspect-ratio: 21 / 9; overflow: hidden; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+    .pair a { display: block; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
     .pair img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform .4s; }
     .pair a:hover img { transform: scale(1.03); }
     @media (max-width: 575.98px) { .pair { gap: .75rem; padding: 1.25rem 1rem; } .pair a { border-radius: 8px; } }
@@ -96,8 +96,10 @@
   </div></section>
 
   <div class="pair">
-    <a href="#migoi"><img src="/chunom/fonts/migoi/cover.jpg" alt="Migoi" loading="lazy"></a>
-    <a href="#celluloid"><img src="/chunom/fonts/celluloid/cover.jpg" alt="Celluloid" loading="lazy"></a>
+    <a href="#pen"><img src="/chunom/fonts/pen/cover.webp" width="800" height="446" alt="QATT Pen" loading="lazy"></a>
+    <a href="#migoi"><img src="/chunom/fonts/migoi/cover.webp" width="800" height="446" alt="Migoi" loading="lazy"></a>
+    <a href="#celluloid"><img src="/chunom/fonts/celluloid/cover.webp" width="800" height="446" alt="Celluloid" loading="lazy"></a>
+    <a href="#phongthao"><img src="/chunom/fonts/phongthao/cover.webp" width="800" height="446" alt="Phong Thảo" loading="lazy"></a>
   </div>
 
   <section class="band b-migoi"><div class="inner">
