@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonet 1899 – new readings | Chunom.org</title>
+  <meta name="description" content="Readings of Chữ Nôm in the dictionary of Jean Bonet (1899) that are not in the input method of chunom.org, and characters of the dictionary that it does not have, each with a link to the scan.">
+  <link rel="stylesheet" href="https://qatt.org/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://qatt.org/css/site.css">
+  <link rel="stylesheet" href="https://qatt.org/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <script src="https://qatt.org/js/navigation.js"></script>
+  <script defer src="/chunom/js/detail.js"></script>
+  <style>
+    :root { --ink: #2b2118; --accent: #a8362a; --paper: #f7efdc; --line: #e4d9c0; --field: #cdbf9f; --muted: #7b6c58; }
+    body { margin: 0; background: var(--paper); color: var(--ink); }
+    /* the header of the pages of qatt.org and the Chunom site (.hero): the look of the theme "classic"; other themes override it */
+    .hero {
+      background:
+        radial-gradient(60rem 22rem at 50% -6rem, rgba(168, 54, 42, .10), transparent 70%),
+        linear-gradient(180deg, var(--paper) 0%, #fffdf8 100%);
+      border-bottom: 1px solid #e8dcc0;
+      color: var(--ink);
+    }
+    .hero h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: clamp(2rem, 6vw, 3rem); letter-spacing: .01em; }
+    .hero .han { color: var(--accent); font-size: 1.25rem; letter-spacing: .5em; padding-left: .5em; }
+    .hero .lead { max-width: 38rem; color: #4a3d30; }
+    @media (max-width: 575.98px) { .hero .han { letter-spacing: .3em; } }
+    main { max-width: 60rem; margin: 0 auto; padding: 0 1rem 2rem; }
+    .card-box { margin: 0 0 1rem; padding: .8rem 1rem 1rem; background: #fffdf8; border: 1px solid var(--line); border-radius: .7rem; box-shadow: 0 .35rem 1rem rgba(60, 40, 20, .14); }
+    .card-box h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 1.5rem; margin: 0 0 .3rem; }
+    .card-box h2 small { font-family: system-ui, sans-serif; font-size: .85rem; color: var(--muted); margin-left: .5rem; }
+    .card-box .note { font-size: .9rem; color: var(--muted); margin-bottom: .6rem; }
+    .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .25rem .8rem; }
+    .row-item { display: flex; align-items: baseline; gap: .5rem; padding: .15rem 0; border-bottom: 1px solid var(--line); }
+    .row-item .ch { font-family: var(--font-cjk), serif; font-size: 1.6rem; line-height: 1.2; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
+    .row-item .ch:hover { color: var(--accent); }
+    .row-item .rd { font-size: 1.05rem; }
+    .row-item .new { color: var(--accent); font-size: .75rem; }
+    .row-item .pages { margin-left: auto; font-size: .85rem; white-space: nowrap; }
+    .row-item .pages a { color: var(--muted); }
+  </style>
+</head>
+<body>
+<header class="hero pt-4 pt-sm-5 pb-4 mb-3">
+  <div class="container text-center">
+    <div class="han mb-2">新音</div>
+    <h1 class="mb-3"><span>Bonet 1899</span> · <span data-vi="Âm đọc mới">New readings</span></h1>
+    <p class="lead mx-auto mb-3" data-vi="Những gì từ điển Bonet có mà bộ gõ của chunom.org chưa có.">What the dictionary of Bonet has that the input method of chunom.org does not.</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-center">
+      <a class="btn btn-cinnabar btn-pill" href="/chunom/dict/bonet.html"><i class="bi bi-book me-1"></i><span data-vi="Mở từ điển">Open the dictionary</span></a>
+      <a class="btn btn-quiet btn-pill" href="/chunom/dict/bonet-chars.html"><i class="bi bi-grid-3x3-gap me-1"></i><span data-vi="Tất cả các chữ">All characters</span></a>
+    </div>
+  </div>
+</header>
+<main>
+  <section class="card-box">
+    <h2><span data-vi="Âm đọc mới">New readings</span><small id="n-readings"></small></h2>
+    <p class="note">Readings that were read from the scan for a character and that the input method does not have for it. <span class="new">new</span> marks a syllable that no character of the input method has. Some may be old spellings of Bonet, or a character that the index matched wrongly: the link shows the place in the scan.</p>
+    <div class="list" id="readings"><p class="text-secondary" data-vi="Đang tải…">Loading…</p></div>
+  </section>
+  <section class="card-box">
+    <h2><span data-vi="Chữ mới">New characters</span><small id="n-chars"></small></h2>
+    <p class="note">Characters of the index of Bonet that the input method does not have at all. They were found by matching the scan automatically and have not been checked yet.</p>
+    <div class="list" id="chars"><p class="text-secondary" data-vi="Đang tải…">Loading…</p></div>
+  </section>
+</main>
+<script type="module">
+  // dict/data/bonet-new.json: { readings: [{ char, reading, syllable, places: [[page, x0, y0, x1, y1], …] }], chars: [{ char, places }] }
+  // (written by the private repository from the index and the readings read from the scan)
+  const data = await fetch('/chunom/dict/data/bonet-new.json').then(r => r.ok ? r.json() : null).catch(() => null);
+  const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children); return node; };
+  const scan = ([page, ...box]) => `/chunom/dict/bonet.html#${page}@${box.join(',')}`;
+  const pages = places => el('span', { className: 'pages' }, ...places.flatMap((p, i) => [i ? ', ' : '', el('a', { href: scan(p), textContent: `${Lang.t('p.', 'tr.')} ${p[0]}` })]));
+  const glyph = ch => { const b = el('button', { type: 'button', className: 'ch', textContent: ch, title: Lang.t('Details', 'Chi tiết') }); b.addEventListener('click', () => window.ChunomDetail?.open(ch)); return b; };
+  const show = () => {
+    if (!data) { document.getElementById('readings').replaceChildren(el('p', { className: 'text-danger', textContent: Lang.t('The list could not be loaded.', 'Không tải được danh sách.') })); return; }
+    document.getElementById('n-readings').textContent = data.readings.length.toLocaleString();
+    document.getElementById('n-chars').textContent = data.chars.length.toLocaleString();
+    document.getElementById('readings').replaceChildren(...data.readings.map(r => el('div', { className: 'row-item' }, glyph(r.char), el('span', { className: 'rd', textContent: r.reading }),
+      ...(r.syllable ? [el('span', { className: 'new', textContent: Lang.t('new', 'mới') })] : []), pages(r.places))));
+    document.getElementById('chars').replaceChildren(...data.chars.map(c => el('div', { className: 'row-item' }, glyph(c.char), pages(c.places))));
+  };
+  show();
+  document.addEventListener('langchange', show);
+</script>
+</body>
+</html>
