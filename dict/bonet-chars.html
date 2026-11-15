@@ -42,6 +42,7 @@
     .place-menu[hidden] { display: none; }
     .place-menu a, .place-menu button { padding: .3rem .6rem; border-radius: .3rem; text-align: left; border: 0; background: none; color: inherit; font: inherit; }
     .place-menu a:hover, .place-menu button:hover, .place-menu a:focus-visible { background: color-mix(in srgb, currentColor 10%, transparent); }
+    .place-menu .rd { display: inline-block; color: var(--muted); font-style: italic; margin-left: .4em; }
     .place-menu button { border-top: 1px solid var(--line); border-radius: 0 0 .3rem .3rem; margin-top: .2rem; color: var(--muted); }
   </style>
 </head>
@@ -61,10 +62,12 @@
   <nav class="letters" id="letters" aria-label="Letters"></nav>
   <div id="groups"><p class="text-center text-secondary" data-vi="Đang tải…">Loading…</p></div>
   <p class="small text-secondary text-center mt-3" data-vi="Chỉ mục đang được làm: một số chữ chưa có.">The index is a work in progress: some characters are still missing.</p>
+  <p class="small text-secondary text-center" data-vi="Âm đọc bên cạnh số trang được suy ra từ các mục từ của trang ấy, chưa đọc từ bản quét.">The readings next to the page numbers are derived from the headwords of the page, not read from the scan.</p>
 </main>
 <script type="module">
-  // the index { char: [[page, x0, y0, x1, y1], …] } and the last headword of every page (displayed page 1 = item 0), both public
-  const [index, heads] = await Promise.all(['bonet-chars', 'bonet'].map(name =>
+  // the index { char: [[page, x0, y0, x1, y1], …] }, the last headword of every page (displayed page 1 = item 0) and the readings derived
+  // from the headwords of a page { char: [[page, reading, …], …] } (the readings of the character that lie in the range of its page)
+  const [index, heads, derived] = await Promise.all(['bonet-chars', 'bonet', 'bonet-readings'].map(name =>
     fetch(`/chunom/dict/data/${name}.json`).then(r => r.ok ? r.json() : null).catch(() => null)));
   const groupsBox = document.getElementById('groups');
   if (!index || !heads) {
@@ -101,13 +104,15 @@
     return node;
   };
   const pageWord = () => Lang.t('p.', 'tr.');
+  const readingsAt = (ch, page) => ((derived || {})[ch] || []).find(p => p[0] === page)?.slice(1) || [];
+  const placeText = (ch, page) => [`${pageWord()} ${page}`, readingsAt(ch, page).join(' / ')].filter(Boolean).join(' ');
   const scan = ([page, ...box]) => `/chunom/dict/bonet.html#${page}@${box.join(',')}`; // the viewer frames the glyph
   document.getElementById('letters').replaceChildren(...[...groups.keys()].map(letter =>
     el('a', { href: `#l-${letter}`, textContent: letter })));
   groupsBox.replaceChildren(...[...groups].map(([letter, items]) => el('section', { className: 'card-box group' },
     el('h2', { id: `l-${letter}` }, letter, el('small', { textContent: items.length.toLocaleString() })),
     el('div', { className: 'grid' }, ...items.map(item => {
-      const link = el('a', { href: scan(item.places[0]), textContent: item.ch, title: `${pageWord()} ${item.places.map(p => p[0]).join(', ')}` });
+      const link = el('a', { href: scan(item.places[0]), textContent: item.ch, title: item.places.map(p => placeText(item.ch, p[0])).join(', ') });
       link.dataset.ch = item.ch;
       return link;
     })))));
@@ -126,7 +131,10 @@
     e.preventDefault();
     const details = el('button', { type: 'button', textContent: Lang.t('Details', 'Chi tiết') });
     details.addEventListener('click', () => { closeMenu(); window.ChunomDetail?.open(item.ch); });
-    menu.replaceChildren(...item.places.map(place => el('a', { href: scan(place), textContent: `${pageWord()} ${place[0]}` })), details);
+    menu.replaceChildren(...item.places.map(place => {
+      const readings = readingsAt(item.ch, place[0]);
+      return el('a', { href: scan(place) }, `${pageWord()} ${place[0]}`, ...(readings.length ? [el('span', { className: 'rd', textContent: readings.join(' / ') })] : []));
+    }), details);
     const r = link.getBoundingClientRect();
     menu.hidden = false;
     menu.style.left = `${Math.max(8, Math.min(scrollX + r.left, scrollX + innerWidth - menu.offsetWidth - 8))}px`;
