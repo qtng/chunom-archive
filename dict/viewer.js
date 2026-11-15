@@ -683,7 +683,8 @@ export class DictionaryViewer {
 		if (before.width && before.height && ui.img.naturalWidth) { // scroll so that the anchor point is under (x, y) again
 			const after = ui.img.getBoundingClientRect();
 			ui.stage.scrollLeft += after.left + at.x * after.width - x;
-			scrollBy(0, after.top + at.y * after.height - y);
+			// instant: Bootstrap makes the page scroll smoothly, then the page lagged behind the fingers and the image drifted up
+			scrollBy({ top: after.top + at.y * after.height - y, behavior: 'instant' });
 		}
 	}
 
