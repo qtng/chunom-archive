@@ -129,8 +129,10 @@ export class DictionaryViewer {
 			ui.search.dataset.viPlaceholder = 'Tìm từ hoặc 字';
 		}
 
+		// the characters of the page as text (config.glyphs): a click frames one on the scan; in the toolbar, so it stays in view
+		ui.onPage = el('div', { className: 'dict-onpage', hidden: true });
 		const toolbar = el('div', { className: 'dict-toolbar' },
-			el('div', { className: 'd-flex flex-wrap gap-2 align-items-center py-2' }, ui.searchForm, ui.pager, ui.tools));
+			el('div', { className: 'd-flex flex-wrap gap-2 align-items-center py-2' }, ui.searchForm, ui.pager, ui.tools), ui.onPage);
 
 		ui.hint = el('div', { className: 'dict-hint text-secondary small', role: 'status', ariaLive: 'polite' });
 		// a character searched for: where it is (1 of 3) and arrows to its other places
@@ -138,8 +140,6 @@ export class DictionaryViewer {
 			ui.foundText = el('span'),
 			ui.foundPrev = el('button', { type: 'button', className: 'btn btn-sm btn-quiet btn-pill', ariaLabel: 'Previous place' }, el('i', { className: 'bi bi-chevron-left' })),
 			ui.foundNext = el('button', { type: 'button', className: 'btn btn-sm btn-quiet btn-pill', ariaLabel: 'Next place' }, el('i', { className: 'bi bi-chevron-right' })));
-		// the characters of the page as text: a click frames one on the scan
-		ui.onPage = el('div', { className: 'dict-onpage', hidden: true });
 
 		ui.img = el('img', { className: 'dict-image', alt: '', draggable: false });
 		ui.spinner = el('div', { className: 'dict-spinner spinner-border text-secondary', role: 'status' }, el('span', { className: 'visually-hidden', textContent: 'Loading…' }));
@@ -166,7 +166,7 @@ export class DictionaryViewer {
 			tab('pages', 'bi-book', 'Pages'), tab('contents', 'bi-list-ul', 'Contents'));
 
 		ui.panePages = el('div', { className: 'dict-pane', id: 'dict-pane-pages', role: 'tabpanel', ariaLabelledby: 'dict-tab-pages' },
-			toolbar, ui.hint, ui.found, ui.onPage, ui.frame, ui.stageBottom);
+			toolbar, ui.hint, ui.found, ui.frame, ui.stageBottom);
 		ui.paneContents = el('div', { className: 'dict-pane', id: 'dict-pane-contents', role: 'tabpanel', ariaLabelledby: 'dict-tab-contents' },
 			this.buildContents());
 
@@ -229,7 +229,6 @@ export class DictionaryViewer {
 		ui.onPage.addEventListener('click', e => {
 			const chip = e.target.closest('[data-i]');
 			if (chip) this.select(this.glyphs.byPage.get(this.page)[chip.dataset.i], true);
-			else if (e.target.closest('.dict-copy')) this.copyPage(e.target.closest('.dict-copy'));
 		});
 		ui.img.ondblclick = e => this.setZoom(this.zoom > 1.01 ? 1 : 2, { x: e.clientX, y: e.clientY, animate: true }); // zooms around the tapped point
 
@@ -730,14 +729,13 @@ export class DictionaryViewer {
 		if (!list.length) return;
 		ui.onPage.replaceChildren(
 			...list.map((g, i) => {
-				const chip = el('button', { type: 'button', className: 'dict-chip' + (g.isNew ? ' is-new' : ''), title: g.isNew ? t('A reading that the input method does not have', 'Âm đọc mà bộ gõ chưa có') : (g.read ? t('Read from the scan', 'Đọc từ bản quét') : t('Derived from the headwords of the page', 'Suy ra từ các mục từ của trang')) },
+				const kind = g.isNew ? t('A reading that the input method does not have', 'Âm đọc mà bộ gõ chưa có') : (g.read ? t('Read from the scan', 'Đọc từ bản quét') : t('Derived from the headwords of the page', 'Suy ra từ các mục từ của trang'));
+				const chip = el('button', { type: 'button', className: 'dict-chip' + (g.isNew ? ' is-new' : ''), title: [g.readings.join(' / '), kind].filter(Boolean).join(' · ') }, // the whole reading too: on a phone it is cut short
 					el('span', { className: 'han', textContent: g.ch }),
 					g.readings.length ? el('span', { className: 'rd' + (g.read ? '' : ' derived'), textContent: g.readings.join(' / ') }) : '');
 				chip.dataset.i = i;
 				return chip;
-			}),
-			el('button', { type: 'button', className: 'dict-chip dict-copy', title: t('Copy the characters of this page with their readings', 'Sao chép các chữ của trang này cùng âm đọc') },
-				el('i', { className: 'bi bi-copy' })));
+			}));
 	}
 
 	/** frame a character on the scan (and in the address, to share it); scroll: bring it into view */
@@ -747,15 +745,6 @@ export class DictionaryViewer {
 		if (g.page == this.page) this.placeMark();
 		else this.go(g.page, 'push');
 		history.replaceState(null, '', `#${g.page}@${g.box.join(',')}`);
-	}
-
-	copyPage(button) {
-		const text = (this.glyphs.byPage.get(this.page) || []).map(g => `${g.ch}\t${g.readings.join(' / ')}`).join('\n');
-		navigator.clipboard?.writeText(text).then(() => {
-			const icon = button.querySelector('i');
-			icon.className = 'bi bi-check2';
-			setTimeout(() => { icon.className = 'bi bi-copy'; }, 1500);
-		}).catch(() => {});
 	}
 
 	searchGlyph(ch) {
