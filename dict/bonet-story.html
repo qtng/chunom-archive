@@ -77,12 +77,16 @@
     .step .stat { font-family: Georgia, serif; font-size: 1.4rem; color: var(--accent); }
 
     /* a whole page with the characters found */
-    .pagefig { margin: 0 auto 1rem; max-width: 24rem; text-align: center; }
+    .pagefig { margin: 0 auto 1rem; max-width: 30rem; text-align: center; }
     .pf-img { position: relative; display: block; border: 1px solid var(--line); border-radius: .4rem; overflow: hidden; background: #fff; }
-    .pf-img img { width: 100%; display: block; }
-    .pf-img .hit { position: absolute; border: 2px solid #d32f2f; border-radius: 2px; opacity: 0; transform: scale(1.6); transition: opacity .35s, transform .35s; }
-    .pf-img .hit.on { opacity: 1; transform: none; }
-    @media (prefers-reduced-motion: reduce) { .pf-img .hit { transition: none; } }
+    .pf-img .crop { width: 100%; border-radius: 0; }
+    .pf-img > span { position: absolute; opacity: 0; transition: opacity .35s, transform .35s; }
+    .pf-img > span.on { opacity: 1; transform: none; }
+    .pf-img .rule { width: 3px; margin-left: -1px; background: #2e9d48; transform: scaleY(0); transform-origin: top; }
+    .pf-img .margin { width: 3px; background: #2e9d48; }
+    .pf-img .hit { border: 2px solid #d32f2f; border-radius: 2px; transform: scale(1.8); }
+    .pf-img .hit.unsure { border: 2px dashed #e0a000; }
+    @media (prefers-reduced-motion: reduce) { .pf-img > span { transition: none; transform: none; } }
     /* the funnel and the stacked bar */
     .funnel { display: grid; gap: .35rem; margin: .6rem 0 1rem; }
     .funnel .frow { display: grid; grid-template-columns: 1fr; }
@@ -178,8 +182,8 @@
   <section class="card-box" id="way">
     <h2><span class="no">3</span><span data-vi="Cách làm">The way</span></h2>
     <figure class="pagefig" id="pagefig">
-      <a class="pf-img" href="/chunom/dict/bonet.html#520"><img alt="Page 520 of Bonet with the characters found" loading="lazy"></a>
-      <figcaption class="small muted mt-2"><span data-vi="Một trang sau khi nhận dạng">One page after the search</span>: <b id="pf-n"></b> <span id="pf-txt"></span></figcaption>
+      <a class="pf-img" href="/chunom/dict/bonet.html#520" aria-label="Page 520"></a>
+      <figcaption class="small muted mt-2"><span data-vi="Trang 520 qua mắt máy">Page 520 as the program sees it</span>: <span id="pf-txt"></span></figcaption>
     </figure>
     <div class="steps">
       <div class="step">
@@ -344,25 +348,39 @@
       ...[...q.cands].map(ch => el('span', { className: 'c' + (ch === q.char ? ' on' : ''), textContent: ch })));
   }
 
-  // 3. one whole page (520) with the characters found on it, framed one after the other when it comes into view
+  // 3. one whole page as the cutter sees it (story.figure): the rule between the columns, the margin of every headword line, the characters
+  // found (red; amber dashed: still unsure), drawn one after the other when the page comes into view
   {
-    const PAGE = 520, link = document.querySelector('#pagefig .pf-img'), img = link.querySelector('img');
-    const index = await fetch('/chunom/dict/data/bonet-chars.json').then(r => r.json()).catch(() => ({}));
-    const hits = Object.entries(index).flatMap(([ch, ps]) => ps.filter(p => p[0] === PAGE).map(p => [ch, p.slice(1)])).sort((a, b) => (a[1][0] > 700) - (b[1][0] > 700) || a[1][1] - b[1][1]);
-    document.getElementById('pf-n').textContent = hits.length;
-    const txt = document.getElementById('pf-txt');
-    const setTxt = () => txt.textContent = Lang.t(`characters found and framed, each one a link from the character to this place.`, `chữ được tìm thấy và đóng khung, mỗi chữ dẫn tới đúng chỗ này.`);
-    setTxt(); document.addEventListener('langchange', setTxt);
-    img.onload = () => {
-      const H = img.naturalHeight, W = img.naturalWidth;
-      const boxes = hits.map(([ch, [x0, y0, x1, y1]]) => {
-        const b = el('span', { className: 'hit', title: ch });
-        Object.assign(b.style, { left: `${x0 / W * 100}%`, top: `${y0 / H * 100}%`, width: `${(x1 - x0) / W * 100}%`, height: `${(y1 - y0) / H * 100}%` });
-        link.append(b); return b;
-      });
-      new IntersectionObserver((es, o) => { if (!es.some(e => e.isIntersecting)) return; o.disconnect(); boxes.forEach((b, i) => setTimeout(() => b.classList.add('on'), 400 + i * 350)); }, { threshold: .4 }).observe(link);
+    const f = story.figure, host = document.querySelector('#pagefig .pf-img');
+    const ys = [f.rule[1], f.rule[2], ...f.lines.flat().filter((_, i) => i % 3)];
+    const R = [110, Math.min(...ys) - 140, PAGE_W - 30, Math.max(...ys) + 160], W = R[2] - R[0], H = R[3] - R[1]; // the text area of the page
+    const pct = (x, y) => ({ left: `${(x - R[0]) / W * 100}%`, top: `${(y - R[1]) / H * 100}%` });
+    const shape = (cls, style, title) => { const e = el('span', { className: cls, title: title || '' }); Object.assign(e.style, style); return e; };
+    let shapes = [];
+    const draw = () => {
+      host.replaceChildren(crop(f.page, R, { width: host.clientWidth }));
+      const top = Math.min(f.rule[1], ...f.lines.map(l => l[1])), bottom = Math.max(f.rule[2], ...f.lines.map(l => l[2]));
+      shapes = [
+        shape('rule', { ...pct(f.rule[0], top), height: `${(bottom - top) / H * 100}%` }, Lang.t('the rule between the columns', 'đường kẻ giữa hai cột')),
+        ...f.lines.map(([x, y0, y1]) => shape('margin', { ...pct(x - 10, y0), height: `${(y1 - y0) / H * 100}%` }, Lang.t('a headword', 'một mục từ'))),
+        ...f.boxes.map(([x0, y0, x1, y1, ch, st]) => shape('hit' + (st === 'check' ? ' unsure' : ''), { ...pct(x0, y0), width: `${(x1 - x0) / W * 100}%`, height: `${(y1 - y0) / H * 100}%` }, ch)),
+      ];
+      host.append(...shapes);
+      if (shown) shapes.forEach(e => e.classList.add('on'));
     };
-    img.src = scan(PAGE);
+    let shown = false;
+    draw();
+    new ResizeObserver(() => draw()).observe(host);
+    new IntersectionObserver((es, o) => {
+      if (!es.some(e => e.isIntersecting)) return;
+      o.disconnect(); shown = true;
+      shapes.forEach((e, i) => setTimeout(() => e.classList.add('on'), 300 + i * 260));
+    }, { threshold: .35 }).observe(host);
+    const n = f.boxes.filter(b => b[5] !== 'check').length;
+    const setTxt = () => document.getElementById('pf-txt').textContent = Lang.t(
+      `the rule between the columns (green), the margin of each of the ${f.lines.length} headwords (green), ${n} characters found (red), one still unsure (amber).`,
+      `đường kẻ giữa hai cột (xanh), lề của ${f.lines.length} mục từ (xanh), ${n} chữ đã tìm (đỏ), một chữ chưa chắc (vàng).`);
+    setTxt(); document.addEventListener('langchange', setTxt);
   }
 
   // 4. the funnel, the status bar, the map of the pages, the dots
