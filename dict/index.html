@@ -48,10 +48,7 @@
     .hit .pages .rd.read { font-style: normal; }
     .hit .none { color: var(--muted); font-size: .9rem; }
     /* the readings of Bonet that the IME does not have: two compact tables, side by side when there is room */
-    .bonet-new { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1rem 1.5rem; }
-    .bonet-new h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 1.2rem; margin: 0; }
-    .bonet-new h3 small { font-family: system-ui, sans-serif; font-size: .8rem; color: var(--muted); margin-left: .4rem; }
-    .bonet-new .note { font-size: .85rem; color: var(--muted); margin: .1rem 0 .4rem; }
+    #bonet-readings h2 small { font-family: system-ui, sans-serif; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
     .bonet-new .scroll { max-height: 26rem; overflow-y: auto; border-top: 1px solid var(--line); }
     .bonet-new table { width: 100%; border-collapse: collapse; font-size: .9rem; }
     .bonet-new th { position: sticky; top: 0; background: color-mix(in srgb, var(--paper) 94%, transparent); font-weight: 600; font-size: .78rem; color: var(--muted); text-align: left; padding: .25rem .35rem; }
@@ -113,19 +110,10 @@
   </section>
 
   <section class="card-box" id="bonet-readings">
-    <h2 class="h4 mb-1" style="font-family: Georgia, 'Times New Roman', serif; font-weight: 400"><span data-vi="Bonet đọc khác">How Bonet reads differently</span></h2>
+    <h2 class="h4 mb-1" style="font-family: Georgia, 'Times New Roman', serif; font-weight: 400"><span data-vi="Bonet đọc khác">How Bonet reads differently</span><small id="n-bonet-new"></small></h2>
     <p class="small text-secondary mb-3">Readings read from the scan of Bonet that the input method of chunom.org does not have for the character, next to the readings known so far. Some are old spellings or readings that are no longer used; a few may be a character that the index matched wrongly: the page link shows the place.</p>
     <div class="bonet-new">
-      <div>
-        <h3><span data-vi="Âm đọc khác">Other readings</span><small id="n-other"></small></h3>
-        <p class="note">The syllable is known, but not for this character.</p>
-        <div class="scroll" id="t-other"></div>
-      </div>
-      <div>
-        <h3><span data-vi="Âm tiết chưa biết">Unknown syllables</span><small id="n-unknown"></small></h3>
-        <p class="note">No character of the input method has this syllable.</p>
-        <div class="scroll" id="t-unknown"></div>
-      </div>
+      <div class="scroll" id="t-bonet-new"></div>
     </div>
   </section>
 
@@ -225,7 +213,7 @@
   document.addEventListener('langchange', () => finds.forEach(f => f.show()));
 
   // the readings of Bonet that the IME does not have (dict/data/bonet-new.json: { readings: [{ char, reading, known, syllable, places }] }, written by the
-  // private repository from the readings read from the scan): those of a known syllable and the unknown syllables, each a table in the order of Bonet
+  // private repository from the readings read from the scan): one table in the order of Bonet
   fetch('/chunom/dict/data/bonet-new.json').then(r => r.ok ? r.json() : null).catch(() => null).then(data => {
     if (!data) { document.getElementById('bonet-readings').hidden = true; return; }
     const KNOWN_MAX = 6;   // the known readings shown; the rest in the title
@@ -239,11 +227,8 @@
           el('td', {}, ...r.places.flatMap((p, i) => [i ? ' ' : '', el('a', { href: `${viewer('bonet')}#${p[0]}@${p.slice(1).join(',')}`, textContent: p[0] })])));
       })));
     };
-    const other = data.readings.filter(r => !r.syllable), unknown = data.readings.filter(r => r.syllable);
-    document.getElementById('n-other').textContent = other.length;
-    document.getElementById('n-unknown').textContent = unknown.length;
-    document.getElementById('t-other').replaceChildren(table(other));
-    document.getElementById('t-unknown').replaceChildren(table(unknown));
+    document.getElementById('n-bonet-new').textContent = data.readings.length;
+    document.getElementById('t-bonet-new').replaceChildren(table(data.readings));
   });
 </script>
 </body>
