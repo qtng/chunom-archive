@@ -1,5 +1,5 @@
 /*
-The detail popup of a character (readings, glyphs, related characters, the "Add to deck" button), shared by the pages of chunom.org.
+The detail popup of a character (readings, glyphs, related characters, the pages in the Bonet dictionary (dict/data/bonet-chars.json), the "Add to deck" button), shared by the pages of chunom.org.
 
   <script src="…/chunom/js/detail.js"></script>       the popup builds itself when it is first opened
   ChunomDetail.open('生日');                              opens it (loads the dictionary and Bootstrap on demand)
@@ -134,6 +134,7 @@ class ChunomDetail {
   static #instance;
   static #data;
   static #audio;
+  static #bonet;
 
   static get() { return ChunomDetail.#instance ??= new ChunomDetail(); }
 
@@ -182,6 +183,13 @@ class ChunomDetail {
       .then(response => response.ok ? response.text() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then(text => ChunomDetail.get().parseCSV(text))
       .catch(err => { ChunomDetail.#data = null; throw err; });
+  }
+
+  /** The pages of the Bonet dictionary per character { char: [displayed page, …] } (dict/data/bonet-chars.json, loaded once; {} when it cannot be loaded). */
+  static loadBonet() {
+    return ChunomDetail.#bonet ??= fetch(new URL('../dict/data/bonet-chars.json', BASE))
+      .then(response => response.ok ? response.json() : {})
+      .catch(() => ({}));
   }
 
   static loadScript(src, ready) {
@@ -722,6 +730,14 @@ class ChunomDetail {
     const glyphBox = el('div', { className: 'd-flex align-items-center justify-content-center rounded border glyph-box px-2', title: 'Click to copy glyph', 'data-copy': mainNom }, glyph);
 
     if (hex) this.attachStrokeOrder(glyphBox, mainNom);   // only for a single character, not for a compound
+    // The pages of the scanned Bonet dictionary (1899) with this character as a headword
+    const bonetBox = el('div', { className: 'bonet-pages' });
+    if (hex) ChunomDetail.loadBonet().then(index => {
+      const pages = index[mainNom];
+      if (!pages || this.currentNom !== mainNom) return;
+      bonetBox.replaceChildren('Bonet 1899: ', ...pages.flatMap((page, i) => [i ? ', ' : '',
+        el('a', { href: `${SITE}chunom/dict/bonet.html#${page}`, className: 'text-reset', title: `Bonet 1899, page ${page}`, textContent: `p. ${page}` })].filter(Boolean)));
+    });
     this.modalBody.replaceChildren(
       el('div', { className: 'd-flex align-items-start gap-4 mb-4 p-2' },
         el('div', { className: 'd-flex flex-column align-items-center' },
@@ -744,6 +760,7 @@ class ChunomDetail {
               ' - ',
               el('span', { className: 'clickable-meta border-bottom font-serif', title: 'Click to copy', 'data-copy': mainNom, textContent: mainNom })),
             strokes && el('div', { textContent: `Strokes: ${strokes}` }),
+            bonetBox,
             rank && el('div', {}, 'Rank: ', el('span', { className: 'badge badge-rank', textContent: `#${rank}` }))))),
       el('div', { className: 'list-group list-group-flush border-top' }, sortedRelated.map(r => {
         const item = el('div', { className: `list-group-item ${r[1] !== mainNom ? 'list-group-item-action' : ''} py-3 px-0` },
