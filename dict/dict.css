@@ -88,9 +88,10 @@ body {
 .dict-stage.is-zoomed, .dict-stage.is-pinched { touch-action: pan-x pan-y; } /* zoomed: panning must work sideways too */
 /* tilting or sliding pages must not widen the scrollable area; zoomed pages scroll sideways */
 .dict-stage:not(.is-zoomed) { overflow-x: hidden; }
+.dict-sheet { position: relative; width: calc(var(--zoom, 1) * 100%); } /* the page at its zoomed width, with the mark on it */
 .dict-image {
 	display: block;
-	width: calc(var(--zoom, 1) * 100%);
+	width: 100%;
 	max-width: none;
 	height: auto;
 	background: #fff;
@@ -104,6 +105,23 @@ body {
 .dict-stage.is-inverted .dict-image { filter: invert(1) hue-rotate(180deg); background: #111; }
 .dict-stage.is-loading .dict-image { opacity: .35; }
 .dict-image:not([src]) { visibility: hidden; min-height: 60vh; }
+/* The mark around a glyph (#page@x0,y0,x1,y1, from the detail popup): placed in % of the page by viewer.js; it pulses three times when it appears.
+   It hides while the page is dragged or turns (the image is moved by a transform then) and while the next page loads. */
+.dict-mark {
+	position: absolute;
+	border: 3px solid var(--cinnabar, #a8362a);
+	border-radius: .4rem;
+	background: color-mix(in srgb, var(--cinnabar, #a8362a) 12%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, #fff 70%, transparent);
+	pointer-events: none;
+	transition: opacity .15s;
+}
+.dict-mark[hidden] { display: none; }
+.dict-mark.is-new { animation: dict-mark-pulse .7s ease-in-out 3; }
+@keyframes dict-mark-pulse { 50% { transform: scale(1.35); } }
+@media (prefers-reduced-motion: reduce) { .dict-mark.is-new { animation: none; } }
+.dict-image[style*="translate"] ~ .dict-mark, .dict-stage.is-loading .dict-mark { opacity: 0; }
+.dict-stage.is-inverted .dict-mark { box-shadow: 0 0 0 3px color-mix(in srgb, #000 60%, transparent); }
 
 .dict-spinner { position: absolute; top: 40vh; left: 50%; margin: -1rem 0 0 -1rem; display: none; }
 .dict-stage.is-loading ~ .dict-spinner { display: block; }
@@ -167,3 +185,58 @@ body {
 #app .dict-contents a.list-group-item.active { color: var(--bs-list-group-active-color); }
 #app .dict-contents .small a { color: var(--cinnabar); }
 .dict-contents dt { color: var(--cinnabar); }
+
+/* The characters found on the page (config.glyphs, Bonet): light frames that are visible but do not cover the print, stronger
+   on hover; amber where Bonet's reading is not in the input method. The tip shows the character and its reading. */
+.dict-spots { position: absolute; inset: 0; pointer-events: none; transition: opacity .15s; }
+.dict-image[style*="translate"] ~ .dict-spots, .dict-stage.is-loading .dict-spots { opacity: 0; }
+.dict-spot {
+	--spot: var(--cinnabar, #a8362a);
+	position: absolute; padding: 0; pointer-events: auto; cursor: pointer;
+	border: 1.5px solid color-mix(in srgb, var(--spot) 45%, transparent);
+	border-radius: .25rem;
+	background: color-mix(in srgb, var(--spot) 6%, transparent);
+}
+.dict-spot.is-new { --spot: #c98a12; }
+.dict-spot:hover, .dict-spot:focus-visible {
+	border: 2px solid color-mix(in srgb, var(--spot) 80%, transparent);
+	background: color-mix(in srgb, var(--spot) 10%, transparent);
+	outline: none;
+}
+.dict-spot::after {
+	content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+	white-space: nowrap; padding: .15rem .5rem; border-radius: .4rem; font-size: .9rem; line-height: 1.4;
+	background: #2b2118; color: #fff; font-family: var(--font-cjk, "QATT Pen"), system-ui, sans-serif;
+	opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 3;
+}
+.dict-spot:hover::after, .dict-spot:focus-visible::after { opacity: 1; }
+.dict-stage.is-inverted .dict-spot { --spot: #f0a090; }
+.dict-stage.is-inverted .dict-spot.is-new { --spot: #ffd27a; }
+
+/* the characters of the page as text */
+.dict-onpage { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem .35rem; padding: .1rem 0 .55rem; }
+/* phone: one row that scrolls sideways, the readings cut short */
+@media (max-width: 767.98px) {
+	.dict-onpage { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; margin-inline: -12px; padding-inline: 12px; }
+	.dict-onpage::-webkit-scrollbar { display: none; }
+	.dict-chip { flex: none; max-width: 8.5rem; }
+	.dict-chip .rd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+}
+.dict-onpage[hidden] { display: none; }
+.dict-hint.is-empty { display: none; }
+.dict-chip {
+	display: inline-flex; align-items: baseline; gap: .3rem; padding: .05rem .55rem .1rem; border-radius: 99px;
+	border: 1px solid var(--line, #e4d9c0); background: color-mix(in srgb, currentColor 3%, transparent); color: inherit; font-size: .88rem;
+}
+.dict-chip:hover { border-color: var(--cinnabar, #a8362a); }
+.dict-chip .han { font-family: var(--font-cjk, "QATT Pen"), serif; font-size: 1.15rem; line-height: 1.2; }
+.dict-chip .rd.derived { font-style: italic; color: var(--muted); }
+.dict-chip.is-new { border-color: #d9a441; background: color-mix(in srgb, #d9a441 14%, transparent); }
+.dict-found { display: flex; align-items: center; justify-content: center; gap: .35rem; padding: 0 0 .4rem; }
+.dict-found[hidden] { display: none; }
+.dict-found .btn[hidden] { display: none; }
+
+/* the candidates of the input method (config.glyphs): the characters found in Bonet with a badge, the others muted */
+.dict-cand-other { opacity: .55; }
+.dict-cand-badge { grid-area: reading; justify-self: end; align-self: end; margin-left: .5em; padding: 0 .45em; border-radius: 1em; font-size: .7em; line-height: 1.5;
+	background: color-mix(in srgb, var(--accent, #c98a12) 18%, transparent); color: var(--accent, #c98a12); white-space: nowrap; }

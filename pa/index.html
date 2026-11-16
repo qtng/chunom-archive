@@ -22,6 +22,13 @@
     .guide h2 .no { color: var(--cinnabar); font-size: 1.1rem; margin-right: .5rem; vertical-align: .3rem; }
     .guide .lead-text { color: var(--bs-secondary-color); }
 
+    /* the keyboard QATTKey (qatt.org): a picture of it with PA candidates, linked to its page */
+    .kb { display: grid; grid-template-columns: 17rem 1fr; gap: 1.2rem; align-items: center; padding: 1.2rem; color: var(--ink); }
+    .kb img { display: block; width: 100%; height: auto; border-radius: .7rem; }
+    .kb h3 { font-size: 1.15rem; margin: 0 0 .4rem; }
+    .kb p { margin: 0 0 .8rem; color: var(--bs-secondary-color); }
+    @media (max-width: 575.98px) { .kb { grid-template-columns: 1fr; } }
+
     /* the sample line of the hero: Nôm, PA, Quốc Ngữ */
     .sample { display: inline-grid; grid-template-columns: repeat(6, auto); gap: .1rem 1rem; margin-top: 1.2rem; justify-items: center; color: var(--ink); }
     .sample .nom { font-family: var(--font-cjk), serif; font-size: 2.2rem; line-height: 1.2; }
@@ -32,6 +39,14 @@
     /* the steps as a sticky bar of section links */
     .toc-bar { position: sticky; top: 0; z-index: 5; padding: .5rem 0; background: color-mix(in srgb, var(--paper, var(--bs-body-bg)) 90%, transparent); backdrop-filter: blur(6px); }
     .toc-bar .steps { margin: 0; flex-wrap: wrap; }   /* nine sections: two rows on a phone rather than a page wider than the screen */
+    .toc-bar { display: flex; align-items: center; gap: .6rem; } .toc-bar .steps { flex: 1; }
+    /* the PA font (the fonts of PA_FONTS in js/fonts.js of qatt.org: only these have the PA characters): in the bar of the sections, on a phone fixed at the bottom left (the button "to the top" is on the right) */
+    .pa-font { flex: none; display: flex; align-items: center; gap: .35rem; margin: 0; font-size: .8rem; color: var(--bs-secondary-color); }
+    .pa-font select { width: auto; border-radius: 2rem; font-size: .85rem; padding-top: .2rem; padding-bottom: .2rem; }
+    @media (max-width: 767.98px) {
+      .pa-font { position: fixed; left: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 1020; padding: .3rem .35rem .3rem .7rem; border-radius: 2rem; background: var(--paper, var(--bs-body-bg)); box-shadow: 0 .2rem .7rem rgba(0, 0, 0, .3); }
+      body.has-bottom-bar:not(.bar-typing) .pa-font { bottom: calc(60px + 1rem + env(safe-area-inset-bottom)); }
+    }
 
     /* the idea: three parts */
     .parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .7rem; margin-top: 1rem; }
@@ -102,6 +117,7 @@
     .verse .w .pa { font-size: 2.5rem; }
     .verse .w .qn { font-family: Georgia, serif; font-size: .95rem; line-height: 1.3; color: var(--cinnabar); visibility: hidden; opacity: 0; transform: translateY(-.3rem); transition: opacity .3s, transform .3s; }
     .verse .w.open .qn { visibility: visible; opacity: 1; transform: none; }
+    .verse .w .rb { font-family: var(--font-cjk), serif; font-size: 2.2rem; line-height: 2.3; padding-top: .3rem; }   /* room over the character for the PA annotation of the font */
     .verse .play { flex: none; }
     @media (max-width: 420px) { .verse .w .pa { font-size: 1.6rem; } .verse .w { padding: .1rem 0; } .verse .words { gap: .2rem .35rem; } .verse { padding: .6rem .5rem; gap: .3rem; } .verse .w .nom, .verse .w .qn { font-size: .75rem; } }   /* a line of eight words in one row on a phone */
     .why { padding: .8rem 1rem; border-left: 3px solid var(--cinnabar); background: color-mix(in srgb, var(--cinnabar) 5%, transparent); }
@@ -197,6 +213,8 @@
       <h2><span class="no">8</span><span data-vi="Đọc">Read</span></h2>
       <p class="lead-text"><span data-vi="Bốn câu đầu của Truyện Kiều. Hãy tự đọc từng chữ, rồi nhấn vào để kiểm tra; nút loa đọc cả câu.">The first four lines of Truyện Kiều. Read each word yourself, then tap it to check; the speaker reads the whole line.</span></p>
       <div class="verses" id="verses"></div>
+      <p class="lead-text mt-4"><span data-vi="Bốn câu đầu của bản dịch Nôm bài Nam quốc sơn hà. Ở đây PA là chú âm: âm tiết nhỏ nằm trên chữ Nôm (chữ Nôm, rồi một ký tự điều khiển, rồi âm tiết PA). Nhấn vào chữ để xem Quốc Ngữ.">The first four lines of a Nôm translation of Nam quốc sơn hà. Here PA is the annotation: a small syllable stands over the Nôm character (the character, then a control character, then the PA syllable). Tap a character to see the Quốc Ngữ.</span></p>
+      <div class="verses" id="verses2"></div>
     </section>
 
     <section id="chart">
@@ -210,6 +228,17 @@
       </div>
       <p class="desk text-center mt-3"><span data-vi="Trên máy tính: các ký tự PA có trong phông chữ QATT Pen, tải về trong danh mục phông chữ.">On the desktop: the PA characters are in the font QATT Pen, to download from the font catalogue.</span></p>
     </section>
+
+    <section id="keyboard">
+      <div class="card-box kb mt-5">
+        <a href="https://qatt.org/apps/keyboard.html" tabindex="-1" aria-hidden="true"><img src="https://qatt.org/apps/keyboard/keyboard-pa.jpg" width="800" height="207" loading="lazy" alt=""></a>
+        <div>
+          <h3 data-vi="PA trên điện thoại">PA on your phone</h3>
+          <p data-vi="QATTKey, bàn phím cho Android, viết PA, QATT và chữ Nôm trong mọi ứng dụng: gõ chữ Quốc Ngữ bằng Telex rồi chọn chữ PA trong các gợi ý.">QATTKey, a keyboard for Android, writes PA, QATT and Chữ Nôm in any app: type Quốc Ngữ with Telex and pick the PA character among the candidates.</p>
+          <a class="btn btn-cinnabar btn-pill" href="https://qatt.org/apps/keyboard.html"><i class="bi bi-phone"></i> <span data-vi="Tải bàn phím">Get the keyboard</span></a>
+        </div>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -220,7 +249,7 @@
   const vi = (e, text) => { e.dataset.vi = text; return e; };
   const hanSpan = h => el('span', 'han', h);
   const parser = new VietnameseParser('qatt');
-  const J = 0xF00B0, K = 0xF00B1, A0 = 0xF00B2, N0 = 0xF00C9, C0 = 0xF00DF, T0 = 0xF00E9;
+  const J = 0xF00D0, K = 0xF00D1, A0 = 0xF00D2, N0 = 0xF00E9, C0 = 0xF00FF, T0 = 0xF0109;
   const chr = (...c) => String.fromCodePoint(...c);
 
   // the initials in the order of the code points (PA ONSET ZERO … X): the Hán character and the reading that gives the sound
@@ -268,6 +297,28 @@
     li.append(a); ol.append(li); return li;
   });
   $('toc').append(ol);
+
+  // the PA font: the families of PA_FONTS (js/fonts.js), the choice in localStorage.paFont, PA Pen by default; the plain PA behind it
+  (() => {
+    const fonts = (typeof PA_FONTS !== 'undefined' ? PA_FONTS : [{ family: 'PA Pen' }, { family: 'PA' }]).map(f => f.family);
+    let now = 'PA Pen'; try { now = localStorage.paFont || now; } catch (e) {}
+    if (!fonts.includes(now)) now = fonts.includes('PA Pen') ? 'PA Pen' : fonts[0];
+    const set = f => document.documentElement.style.setProperty('--pa', f === 'PA' ? '"PA"' : `"${f}", "PA"`);
+    const label = el('label', 'pa-font'), select = el('select', 'form-select form-select-sm');
+    label.append(vi(el('span', null, 'Font'), 'Phông chữ'), select);
+    select.setAttribute('aria-label', 'PA font'); select.dataset.viAriaLabel = 'Phông chữ PA';
+    for (const f of fonts) { const o = el('option', null, f === 'PA' ? 'PA (plain)' : f); o.value = f; if (f === 'PA') vi(o, 'PA (đơn giản)'); select.append(o); }
+    select.value = now; set(now);
+    select.addEventListener('change', () => { set(select.value); try { localStorage.paFont = select.value; } catch (e) {} });
+    // in the bar of the sections; on a phone in <body> (the backdrop-filter of the bar would make the bar the frame of position: fixed)
+    const phone = matchMedia('(max-width: 767.98px)'), place = () => (phone.matches ? document.body : $('toc')).append(label);
+    place(); phone.addEventListener('change', place);
+  })();
+  // the bar of the sections below the fixed menu bar (sticky at top 0 it went under it)
+  (() => {
+    const fit = () => { const h = document.querySelector('.nav-backdrop'); $('toc').style.top = (h ? h.getBoundingClientRect().height : 0) + 'px'; };
+    fit(); addEventListener('resize', fit); addEventListener('load', fit);
+  })();
   const mark = id => items.forEach((li, i) => li.classList.toggle('now', SECTIONS[i][0] === id));
   mark('idea');
   const seen = new Map();
@@ -314,7 +365,7 @@
   const runBuild = () => {
     clearTimeout(buildTimer);
     const n = drawBuild();
-    buildTimer = setTimeout(() => { stage = stage < n - 1 ? stage + 1 : 0; if (stage === 0) example = (example + 1) % EXAMPLES.length; runBuild(); }, stage < n - 1 ? 1500 : 3200);
+    buildTimer = setTimeout(() => { stage = stage < n - 1 ? stage + 1 : 0; if (stage === 0) example = (example + 1) % EXAMPLES.length; runBuild(); }, stage < n - 1 ? 1000 : 2500);   // the steps follow each other every 1000 ms, the finished syllable stays 2.5 s
   };
   EXAMPLES.forEach(([h, w], i) => {
     const b = el('button', 'btn btn-quiet btn-pill', w); b.type = 'button'; b.lang = 'vi';
@@ -387,6 +438,32 @@
     play.setAttribute('aria-label', 'Read the line'); play.dataset.viAriaLabel = 'Đọc cả câu';
     play.append(el('i', 'bi bi-volume-up-fill'));
     play.addEventListener('click', () => { ws.forEach(b => b.classList.add('open')); say(line.map(([, w]) => w).join(' ')); });
+    box.append(words, play);
+    return box;
+  }));
+
+  // 8b. Nam quốc sơn hà: Chữ Nôm with PA as ruby annotation (character, U+F00B0, PA syllable: the font puts the syllable over the character); the Quốc Ngữ is read from the annotation
+  const NAM = [
+    '瀧\u{F00B0}\u{F00E3}\u{F00D0}\u{F00F1}\u{F00D1}\u{F0103}𡶀\u{F00B0}\u{F00DF}\u{F00D0}\u{F00F3}\u{F00D1}\u{F0100}\u{F0109}渃\u{F00B0}\u{F00DF}\u{F00D0}\u{F00F6}\u{F00D1}\u{F0107}\u{F0109}南\u{F00B0}\u{F00DF}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0101}君\u{F00B0}\u{F00E7}\u{F00D0}\u{F00F4}渃\u{F00B0}\u{F00DF}\u{F00D0}\u{F00F6}\u{F00D1}\u{F0107}\u{F0109}南\u{F00B0}\u{F00DF}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0101}於\u{F00B0}\u{F00D2}\u{F00D0}\u{F00EA}\u{F00D1}\u{F010B}。',
+    '分\u{F00B0}\u{F00D8}\u{F00D0}\u{F00EC}\u{F00D1}\u{F0102}位\u{F00B0}\u{F00E7}\u{F00D0}\u{F00EF}\u{F00D1}\u{F010D}瀝\u{F00B0}\u{F00E2}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0108}\u{F010D}耒\u{F00B0}\u{F00E2}\u{F00D0}\u{F00F1}\u{F00D1}\u{F0100}\u{F010A}㐌\u{F00B0}\u{F00D6}\u{F00D0}\u{F00E9}\u{F00D1}\u{F010C}記\u{F00B0}\u{F00D9}\u{F00D0}\u{F00EF}𥪝\u{F00B0}\u{F00E6}\u{F00D0}\u{F00F2}\u{F00D1}\u{F0103}冊\u{F00B0}\u{F00E3}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0108}\u{F0109}𡗶\u{F00B0}\u{F00E6}\u{F00D0}\u{F00EA}\u{F00D1}\u{F0100}\u{F010A}。',
+    '故\u{F00B0}\u{F00D4}\u{F00D0}\u{F00EA}\u{F00D1}\u{F0109}𣋀\u{F00B0}\u{F00E3}\u{F00D0}\u{F00E9}\u{F00D1}\u{F00FF}婁\u{F00B0}\u{F00DD}\u{F00D0}\u{F00F3}\u{F00D1}\u{F010C}賊\u{F00B0}\u{F00DA}\u{F00D0}\u{F00EB}\u{F00D1}\u{F0107}\u{F010D}暴\u{F00B0}\u{F00D3}\u{F00D0}\u{F00E9}\u{F00D1}\u{F00FF}\u{F010D}虐\u{F00B0}\u{F00E0}\u{F00D0}\u{F00F6}\u{F00D1}\u{F0107}\u{F010D}𦤾\u{F00B0}\u{F00D6}\u{F00D0}\u{F00ED}\u{F00D1}\u{F0102}\u{F0109}侵\u{F00B0}\u{F00E8}\u{F00D0}\u{F00EC}\u{F00D1}\u{F0101}犯\u{F00B0}\u{F00D8}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0101}\u{F010D}。',
+    '眾\u{F00B0}\u{F00D5}\u{F00D0}\u{F00F3}\u{F00D1}\u{F0103}\u{F0109}悲\u{F00B0}\u{F00D3}\u{F00D0}\u{F00EC}\u{F00D1}\u{F0100}耒\u{F00B0}\u{F00E2}\u{F00D0}\u{F00F1}\u{F00D1}\u{F0100}\u{F010A}䀡\u{F00B0}\u{F00E8}\u{F00D0}\u{F00EE}\u{F00D1}\u{F0101}𠱊\u{F00B0}\u{F00E3}\u{F00D0}\u{F00EE}\u{F00D1}\u{F010C}酌\u{F00B0}\u{F00D5}\u{F00D0}\u{F00F4}\u{F00D1}\u{F0107}\u{F0109}𥙩\u{F00B0}\u{F00DD}\u{F00D0}\u{F00EC}\u{F00D1}\u{F0100}\u{F0109}失\u{F00B0}\u{F00E5}\u{F00D0}\u{F00EC}\u{F00D1}\u{F0106}\u{F0109}在\u{F00B0}\u{F00E4}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0100}\u{F010D}散\u{F00B0}\u{F00E4}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0102}𫠽\u{F00B0}\u{F00E4}\u{F00D0}\u{F00E9}\u{F00D1}\u{F0104}\u{F010A}。',
+  ];
+  const UNIT = /([^\u{F00B0}-\u{F010E}。])(\u{F00B0}[\u{F00D0}-\u{F010E}]*)?|。/gu;
+  $('verses2').append(...NAM.map(text => {
+    const box = el('div', 'card-box verse'), words = el('div', 'words'), ws = [], qns = [];
+    for (const m of text.matchAll(UNIT)) {
+      if (!m[1]) { words.append(el('span', 'nom', '。')); continue; }
+      const qn = m[2] ? PaText.read(m[2].slice(2), parser).trim() : '';
+      const b = el('button', 'w'); b.type = 'button'; b.lang = 'vi';
+      b.append(el('span', 'rb', m[1] + (m[2] || '')), el('span', 'qn', qn));
+      b.addEventListener('click', () => { b.classList.add('open'); if (qn) say(qn); });
+      words.append(b); ws.push(b); if (qn) qns.push(qn);
+    }
+    const play = el('button', 'btn btn-quiet round play'); play.type = 'button';
+    play.setAttribute('aria-label', 'Read the line'); play.dataset.viAriaLabel = 'Đọc cả câu';
+    play.append(el('i', 'bi bi-volume-up-fill'));
+    play.addEventListener('click', () => { ws.forEach(b => b.classList.add('open')); say(qns.join(' ')); });
     box.append(words, play);
     return box;
   }));

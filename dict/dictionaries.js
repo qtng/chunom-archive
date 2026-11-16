@@ -50,6 +50,7 @@ export const DICTIONARIES = {
 		title: 'Bonet, Jean, 1899',
 		subtitle: 'Dictionnaire Annamite-Français',
 		note: 'Langue officielle et langue vulgaire',
+		glyphs: true, // the characters found on the pages (data/bonet-chars.json …): spots on the scan, the strip "On this page", the search by character (viewer.js)
 		pageUrl: n => `${ASSETS}/bonnet/pages/bonnet%20(${n}).webp`,
 		offset: 39,
 		lastImage: 1032,

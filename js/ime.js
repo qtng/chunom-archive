@@ -7,14 +7,24 @@
 
 	Options:
 		telex [true]           Telex input; 'compound' only converts tones and đ (no aa, ee, oo, w)
-		candidates [true]      Chữ Nôm candidate list for the word before the caret
+		candidates [true]      Chữ Nôm candidate list for the word before the caret; a function is asked every time (e.g. () => !wide())
+		candidateHook          (items, word) => items: change, sort or extend the candidates (also called with word '' for an empty field)
+		renderItem             (item, index, el) => element: el is the entry ime.js would show; return it (changed or not, or nothing),
+		                       another element, or null to leave the candidate out. Called with item null before every new list and when
+		                       the list closes. With the list off (candidates false) ime.js places nothing: the page puts the elements
+		                       where it wants, ime.js still inserts the candidate on a click (no keys, all candidates, not paged)
 		defer [false]          true: load dictionaries on first focus; 'wait': also read-only while loading
-		dictionaries           JSON dictionaries ({dict: "|reading:glyph,glyph|…", defs: {readingGlyph: definition}})
+		dictionaries           JSON dictionaries ({order, sources: {key: {items, defs}}} (ime_dict.json), or the old {dict: "|reading:glyph,glyph|…", defs: {readingGlyph: definition}})
 		fontList [[]]          fonts for Nôm glyphs, also applied to the field while candidates are on
 		returnSelect [false]   Enter selects the first candidate
 		spaceSelect [false]    Space selects the first candidate
 		showDefinitions [true]
 		timeout [0]            milliseconds without typing or key presses after which the list closes itself; 0: never
+
+	Rich text editors (contenteditable): pass an adapter object instead of a field. It has value, selectionStart, selectionEnd, setSelectionRange()
+	(the text of the current block and the selection in it), get/set/removeAttribute, style, getBoundingClientRect() (the caret), and:
+		imeTarget              the element that has the focus and fires the events (beforeinput, input, keydown, click, blur, composition…)
+		replaceRange(text, from, to)  replaces value[from, to) with text (instead of execCommand on a field)
 
 	Keys: 1–9, 0 select a candidate, ↑/↓ move, Enter selects the marked one, PageUp/PageDown page, Esc closes.
 	Every change to the field fires a regular input event and can be undone.
@@ -22,7 +32,7 @@
 	Methods:
 		ime.update({ telex: false, candidates: false })
 		VietIme.load()               loads the default dictionaries, returns a promise
-		VietIme.lookup('chữ nôm')    [{glyph, reading, definition}], exact matches first
+		VietIme.lookup('chữ nôm')    [{glyph, reading, definition}], found by the letters without marks ("nuoc" finds "nước"), exact matches first
 		VietIme.lookupGlyph('越')    entries whose glyphs contain the characters
 		VietIme.telex('vieetj')      'việt'
 
@@ -207,7 +217,7 @@
 	// ---------- Dictionaries ----------
 
 	const BASE = new URL('./', document.currentScript?.src || location.href); // the folder js/ of chunom
-	const DICTIONARIES = [new URL('generated_chars.json', BASE).href, new URL('base_chars.json', BASE).href];
+	const DICTIONARIES = [new URL('ime_dict.json', BASE).href];
 	// typed punctuation → ideographic forms, plus a few symbols
 	const BUILTIN = "|-_ideographicHyphen:－|&_ideographicAmpersand:＆|\"_ideographicQuoteEnd:」|\"_ideographicQuoteStart:「|\"_ideographicDoubleQuote:＂|<_ideographicBracket:〈|>_ideographicBracket:〉|<_ideographicBracket:《|>_ideographicBracket:》|[_ideographicBracket:【|]_ideographicBracket:】|(_ideographicBracket:（|)_ideographicBracket:）|__ideographicSpace:　|._ideographicDot:。|,_ideographicList:、|?_ideographicQuestionMark:？|!_ideographicExclamationMark:！|=_unknownCharacterSymbol:〓|;_ideographicSemicolon:；|*_ideographicAsterisk:＊|/_ideographicSlash:／|:_ideographicColon:：|__backslash:\\|__iterationMark:ヌ,ㇶ,〻,ゝ,々|__unknownSymbol:〓|__nhayMark:𡿨|\\_plus:+|\\_iterationMark:ヌ,ㇶ,〻,ゝ,々|\\_unknownSymbol:〓|\\_nhayMark:𡿨|\\_idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|__idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|%_idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|idsSymbol:⿰,⿱,⿻,⿴,⿺,⿸,⿹,⿵,⿷,⿶,⿳,⿲|nháy:𡿨,口,亇,厶|nhayMark:𡿨,口,亇,厶|geta:〓|iteration:ヌ,ㇶ,〻,ゝ,々|nôm:喃";
 
@@ -215,14 +225,43 @@
 	const readingOf = key => key.replace(/(\p{Lu})/gu, ' $1').trim().toLowerCase();
 	const isLetter = ch => /[a-zA-Z0-9]/.test(ch) || VIET_LETTERS.has(ch);
 
+	// ---------- The search key of a reading ----------
+	// A reading is found by its letters without any mark ("đ" counts as "d"): "nuoc" finds "nước", "d" finds "đường". A mark that was typed
+	// ("ư", "â", "đ") must be on the same letter, a tone that was typed in the same syllable (wherever it is written: "hoà" = "hòa").
+	// In the order of the Telex keys: đường = đuong + d w w + f (the letters, the marks of the letters in their order, the tone of the syllable).
+	// Equal candidates are sorted by the letters, then the marks in the order of the alphabet (a ă â, d đ, e ê, o ô ơ, u ư),
+	// then the tones (ngang, sắc, huyền, hỏi, ngã, nặng).
+	const TONE = { '́': 1, '̀': 2, '̉': 3, '̃': 4, '̣': 5 };
+	const VARIANT = { 'ă': 1, 'â': 2, 'đ': 1, 'ê': 1, 'ô': 1, 'ơ': 2, 'ư': 1 };
+	// { fold: the letters without marks, letters: [each letter without its tone], syl: [the syllable of each letter], tones: [the tone of each syllable],
+	//   toneAt: [[letter, tone], …], sort } (a new syllable starts at a capital: "chữNôm")
+	function searchKey(text) {
+		let fold = '', marks = '', s = 0;
+		const letters = [], syl = [], tones = [0], toneAt = [];
+		for (const ch of text.normalize('NFC')) {
+			if (letters.length && /\p{Lu}/u.test(ch)) { s++; tones.push(0); }
+			const d = ch.normalize('NFD');
+			let mods = '', tone = 0;
+			for (const c of d.slice(1)) if (TONE[c]) tone = TONE[c]; else mods += c;
+			const letter = (d[0] + mods).normalize('NFC').toLowerCase();
+			if (tone) { tones[s] = tone; toneAt.push([letters.length, tone]); }
+			fold += letter == 'đ' ? 'd' : d[0].toLowerCase();
+			marks += VARIANT[letter] || 0;
+			letters.push(letter);
+			syl.push(s);
+		}
+		return { fold, letters, syl, tones, toneAt, sort: fold + '\0' + marks + '\0' + tones.join('') };
+	}
+
 	class Dictionary {
 		constructor(urls) {
 			this.urls = urls;
-			this.entries = new Map(); // lower-case reading → [[reading, glyph], …]
+			this.byFold = new Map();  // letters without marks → [[reading, glyph, number in the order of the data], …]
+			this.info = new Map();    // reading → searchKey(reading)
 			this.byChar = new Map();  // character → [[reading, glyph], …]
 			this.defs = new Map();    // reading + glyph → definition
 			this.pairs = new Set();
-			this.keys = null;         // sorted readings, built on demand
+			this.keys = null;         // the sorted keys of byFold, built on demand
 			this.add(BUILTIN);
 		}
 
@@ -232,7 +271,12 @@
 				.then(r => r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${url}`)))
 				.catch(e => console.warn('VietIme: dictionary not loaded', e))))
 				.then(data => {
-					for (const d of data) if (d) this.add(d.dict || '', d.defs);
+					for (const d of data) {
+						if (!d) continue;
+						// {order: [key, …], sources: {key: {items, defs?}}}: the sources in their order (the order of the candidates); else the old {dict, defs}
+						if (d.sources) for (const key of d.order || Object.keys(d.sources)) { const s = d.sources[key]; if (s) this.add(s.items || '', s.defs); }
+						else this.add(d.dict || '', d.defs);
+					}
 					return this;
 				});
 		}
@@ -241,12 +285,14 @@
 			for (const entry of dict.replace(/[\r\n]/g, '').split('|')) {
 				const sep = entry.indexOf(':', 1);
 				if (sep < 0) continue;
-				const key = entry.slice(0, sep), lc = key.toLowerCase();
+				const key = entry.slice(0, sep).normalize('NFC');
+				let info = this.info.get(key);
+				if (!info) this.info.set(key, info = searchKey(key));
 				for (const glyph of entry.slice(sep + 1).split(',')) {
 					if (!glyph || this.pairs.has(key + ':' + glyph)) continue;
 					this.pairs.add(key + ':' + glyph);
-					if (!this.entries.has(lc)) this.entries.set(lc, []);
-					this.entries.get(lc).push([key, glyph]);
+					if (!this.byFold.has(info.fold)) this.byFold.set(info.fold, []);
+					this.byFold.get(info.fold).push([key, glyph, this.pairs.size]);
 					for (const ch of new Set(glyph)) {
 						if (!this.byChar.has(ch)) this.byChar.set(ch, []);
 						this.byChar.get(ch).push([key, glyph]);
@@ -257,26 +303,38 @@
 			this.keys = null;
 		}
 
-		// Entries whose reading starts with the (lower-case) prefix: short remainders first, then used and defined ones
+		// The entries that match the typed prefix (see searchKey): first those written exactly as typed so far, then short remainders,
+		// then used and defined ones, then the order of the readings (letters, marks, tones) and of the data; every glyph once, at most 100
 		candidates(prefix) {
-			const keys = this.keys ??= [...this.entries.keys()].sort();
+			const keys = this.keys ??= [...this.byFold.keys()].sort();
+			const t = searchKey(prefix.toLowerCase()), n = t.letters.length;
 			let lo = 0, hi = keys.length;
 			while (lo < hi) {
 				const mid = (lo + hi) >> 1;
-				if (keys[mid] < prefix) lo = mid + 1; else hi = mid;
+				if (keys[mid] < t.fold) lo = mid + 1; else hi = mid;
 			}
-			const list = [], seen = new Set(), usage = getUsage();
-			for (let i = lo; i < keys.length && keys[i].startsWith(prefix); i++) {
-				for (const [key, glyph] of this.entries.get(keys[i])) {
-					if (seen.has(glyph)) continue;
-					seen.add(glyph);
-					const definition = this.defs.get(key + glyph) || '';
-					const used = usage[glyph] || 0;
-					list.push({ glyph, key, head: key.slice(0, prefix.length), remainder: key.slice(prefix.length), definition,
-						score: definition ? (used + 1) * 2 : used, order: list.length });
+			const list = [], usage = getUsage();
+			for (let i = lo; i < keys.length && keys[i].startsWith(t.fold); i++) {
+				for (const [key, glyph, order] of this.byFold.get(keys[i])) {
+					const info = this.info.get(key);
+					let ok = true, exact = true;
+					for (let j = 0; j < n && ok; j++) {
+						if (info.letters[j] != t.letters[j]) { exact = false; if (t.letters[j] != t.fold[j]) ok = false; }   // a typed mark must be there
+					}
+					if (!ok) continue;
+					const typedTone = new Map();
+					for (const [j, tone] of t.toneAt) typedTone.set(info.syl[j], tone);
+					for (const [s, tone] of typedTone) if (info.tones[s] != tone) ok = false;   // a typed tone must be there
+					if (!ok) continue;
+					for (let s = 0; s <= info.syl[n - 1] && exact; s++) if ((typedTone.get(s) || 0) != info.tones[s]) exact = false;
+					const chars = [...key], definition = this.defs.get(key + glyph) || '', used = usage[glyph] || 0;
+					list.push({ glyph, key, head: chars.slice(0, n).join(''), remainder: chars.slice(n).join(''), definition,
+						exact, rest: info.letters.length - n, score: definition ? (used + 1) * 2 : used, sort: info.sort, order });
 				}
 			}
-			return list.sort((a, b) => a.remainder.length - b.remainder.length || b.score - a.score || a.order - b.order).slice(0, 100);
+			list.sort((a, b) => b.exact - a.exact || a.rest - b.rest || b.score - a.score || (a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0) || a.order - b.order);
+			const seen = new Set();
+			return list.filter(c => !seen.has(c.glyph) && seen.add(c.glyph)).slice(0, 100);
 		}
 
 		lookup(word) {
@@ -361,10 +419,13 @@
 
 		constructor(input, options = {}) {
 			this.input = input;
+			this.target = input.imeTarget || input;   // a field, or the editable element of an adapter
 			this.options = { telex: true, candidates: true, defer: false, dictionaries: DICTIONARIES, fontList: [],
 				returnSelect: false, spaceSelect: false, showDefinitions: true, timeout: 0, ...options };
 			this.dict = dictionaryFor(this.options.dictionaries);
 			this.items = [];
+			this.shown = [];
+			this.next = 0;
 			this.page = 0;
 			this.active = -1;
 			this.saved = Object.fromEntries(Object.keys(TYPING_ATTRIBUTES).map(a => [a, input.getAttribute(a)]));
@@ -382,21 +443,22 @@
 			this.list.hidden = true;
 			document.body.append(this.list);
 
-			input.addEventListener('beforeinput', e => this.onBeforeInput(e));
-			input.addEventListener('input', () => this.refresh());
-			input.addEventListener('compositionstart', () => this.composing = true);
-			input.addEventListener('compositionend', e => this.onCompositionEnd(e));
-			input.addEventListener('keydown', e => this.onKeyDown(e));
-			input.addEventListener('click', () => this.refresh());
-			input.addEventListener('blur', () => this.hide());
+			const target = this.target;
+			target.addEventListener('beforeinput', e => this.onBeforeInput(e));
+			target.addEventListener('input', () => this.refresh());
+			target.addEventListener('compositionstart', () => this.composing = true);
+			target.addEventListener('compositionend', e => this.onCompositionEnd(e));
+			target.addEventListener('keydown', e => this.onKeyDown(e));
+			target.addEventListener('click', () => this.refresh());
+			target.addEventListener('blur', () => this.hide());
 			// a touch or click anywhere outside the list and the field closes it, e.g. to scroll the page
-			document.addEventListener('pointerdown', e => { if (!this.list.hidden && e.target != this.input && !this.list.contains(e.target)) this.hide(); }, true);
+			document.addEventListener('pointerdown', e => { if (!this.list.hidden && !this.target.contains(e.target) && !this.list.contains(e.target)) this.hide(); }, true);
 			this.update();
 		}
 
 		update(options = {}) {
 			Object.assign(this.options, options);
-			const { telex, candidates, defer, fontList } = this.options, input = this.input;
+			const { telex, defer, fontList } = this.options, input = this.input, candidates = this.options.candidates || this.options.renderItem;
 			for (const [a, v] of Object.entries(TYPING_ATTRIBUTES)) {
 				const value = telex ? v : this.saved[a];
 				if (value == null) input.removeAttribute(a); else input.setAttribute(a, value);
@@ -410,7 +472,7 @@
 				input.setAttribute('aria-controls', this.list.id);
 				input.setAttribute('aria-expanded', 'false');
 				if (!defer) this.load();
-				else if (!this.dict.ready) input.addEventListener('focus', () => this.load(), { once: true });
+				else if (!this.dict.ready) this.target.addEventListener('focus', () => this.load(), { once: true });
 			} else {
 				for (const a of ['role', 'aria-autocomplete', 'aria-controls', 'aria-expanded', 'aria-activedescendant']) input.removeAttribute(a);
 				this.hide();
@@ -485,6 +547,7 @@
 			while (p < old.length && p < text.length && old[p] == text[p]) p++;
 			if (p && /[\uD800-\uDBFF]/.test(old[p - 1])) p--;
 			const insert = text.slice(p);
+			if (this.input.replaceRange) return this.input.replaceRange(insert, from + p, to);   // an adapter of a rich text editor
 			this.busy = true;
 			this.input.setSelectionRange(from + p, to);
 			if (!document.execCommand(insert ? 'insertText' : 'delete', false, insert)) {
@@ -509,13 +572,31 @@
 		}
 
 		refresh() {
-			if (!this.options.candidates || document.activeElement != this.input) return this.hide();
+			const { candidates, candidateHook, renderItem } = this.options;
+			if (!(candidates || renderItem) || document.activeElement != this.target) return this.hide();
 			const current = this.currentWord();
 			// while a mobile keyboard composes, the word is still raw Telex
 			const word = current && (this.composing && this.options.telex ? telexWord(current.word, this.mode) : current.word);
-			this.items = word ? this.dict.candidates(word.toLowerCase()) : [];
-			this.active = -1;
-			this.showPage(0);
+			let items = word ? this.dict.candidates(word.toLowerCase()) : [];
+			if (candidateHook) items = candidateHook(items, word || '') || [];
+			this.hide();
+			this.items = items;
+			this.listed = !!(typeof candidates == 'function' ? candidates() : candidates);
+			if (this.listed) this.showPage(0);
+			else this.render(Infinity);
+		}
+
+		// renders candidates until n are shown (renderItem may leave some out)
+		render(n) {
+			while (this.shown.length < n && this.next < this.items.length) {
+				const item = this.items[this.next++], index = this.shown.length, own = this.option(item, index);
+				const el = this.options.renderItem ? this.options.renderItem(item, index, own) : own;
+				if (el === null) continue;
+				const shown = el || own;
+				shown.addEventListener('mousedown', e => e.preventDefault()); // keep the focus in the field
+				shown.addEventListener('click', () => this.select(index));
+				this.shown.push({ item, el: shown });
+			}
 		}
 
 		get visible() {
@@ -523,10 +604,17 @@
 		}
 
 		showPage(page) {
-			const pages = Math.ceil(this.items.length / 10);
+			this.render((Math.max(0, page) + 1) * 10);
+			const pages = Math.ceil(this.shown.length / 10);
 			if (!pages) return this.hide();
 			this.page = Math.max(0, Math.min(page, pages - 1));
-			this.list.replaceChildren(...this.items.slice(this.page * 10, this.page * 10 + 10).map((item, i) => this.option(item, this.page * 10 + i)));
+			const entries = this.shown.slice(this.page * 10, this.page * 10 + 10).map(s => s.el);
+			entries.forEach((el, i) => {
+				el.id = `${this.list.id}-${this.page * 10 + i}`;
+				el.setAttribute('role', 'option');
+				el.setAttribute('aria-selected', this.page * 10 + i == this.active);
+			});
+			this.list.replaceChildren(...entries);
 			this.list.hidden = false;
 			this.keepOpen();
 			this.place();
@@ -570,7 +658,8 @@
 		}
 
 		setActive(index) {
-			this.active = Math.max(0, Math.min(index, this.items.length - 1));
+			this.render(index + 1);
+			this.active = Math.max(0, Math.min(index, this.shown.length - 1));
 			this.showPage(Math.floor(this.active / 10));
 		}
 
@@ -588,24 +677,19 @@
 			const symbol = item.remainder.startsWith('_'); // "-_ideographicHyphen": show the name
 			const el = document.createElement('div');
 			el.className = 'vietime-option';
-			el.id = `${this.list.id}-${index}`;
-			el.setAttribute('role', 'option');
-			el.setAttribute('aria-selected', index == this.active);
 			const reading = document.createElement('span');
 			reading.className = 'vietime-reading';
 			reading.append(span('vietime-head', symbol ? item.remainder.slice(1) : item.head), span('vietime-remainder', symbol ? '' : item.remainder));
-			el.append(Object.assign(document.createElement('span'), { className: 'vietime-number', textContent: `${(index % 10 + 1) % 10}.` }),
-				Object.assign(document.createElement('span'), { className: 'vietime-glyph', textContent: item.glyph }), reading);
+			if (this.listed) el.append(Object.assign(document.createElement('span'), { className: 'vietime-number', textContent: `${(index % 10 + 1) % 10}.` }));
+			el.append(Object.assign(document.createElement('span'), { className: 'vietime-glyph', textContent: item.glyph }), reading);
 			if (this.options.showDefinitions && item.definition) {
 				el.append(Object.assign(document.createElement('span'), { className: 'vietime-definition', textContent: item.definition.trim(), title: item.definition.trim() }));
 			}
-			el.addEventListener('mousedown', e => e.preventDefault()); // keep the focus in the field
-			el.addEventListener('click', () => this.select(index));
 			return el;
 		}
 
 		select(index) {
-			const item = this.items[Math.min(index, this.items.length - 1)], current = this.currentWord();
+			const item = this.shown[Math.min(index, this.shown.length - 1)]?.item, current = this.currentWord();
 			if (!item || !current) return;
 			this.hide();
 			countUsage(item.glyph);
@@ -621,8 +705,11 @@
 		hide() {
 			clearTimeout(this.idleTimer);
 			this.items = [];
+			this.shown = [];
+			this.next = 0;
 			this.active = -1;
 			this.list.hidden = true;
+			if (this.options.renderItem) this.options.renderItem(null);
 			if (this.input.hasAttribute('aria-expanded')) this.input.setAttribute('aria-expanded', 'false');
 			this.input.removeAttribute('aria-activedescendant');
 		}

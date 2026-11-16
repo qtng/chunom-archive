@@ -1,5 +1,5 @@
 /*
-The detail popup of a character (readings, glyphs, related characters, the "Add to deck" button), shared by the pages of chunom.org.
+The detail popup of a character (readings, glyphs, related characters, the pages in the Bonet dictionary (dict/data/bonet-chars.json), the "Add to deck" button), shared by the pages of chunom.org.
 
   <script src="…/chunom/js/detail.js"></script>       the popup builds itself when it is first opened
   ChunomDetail.open('生日');                              opens it (loads the dictionary and Bootstrap on demand)
@@ -28,6 +28,19 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+// The stroke order (js/stroke-order.js) is loaded when a popup shows a single character: resolves to window.StrokeOrder, null when it cannot be loaded
+let strokeOrderScript = null;
+function loadStrokeOrder() {
+  if (window.StrokeOrder) return Promise.resolve(window.StrokeOrder);
+  strokeOrderScript ||= new Promise(resolve => {
+    const script = el('script', { src: new URL('stroke-order.js', BASE).href });
+    script.onload = () => resolve(window.StrokeOrder || null);
+    script.onerror = () => resolve(null);
+    document.head.append(script);
+  });
+  return strokeOrderScript;
+}
+
 const NOM_CHAR = /[一-鿿㐀-䶿\u{20000}-\u{323af}]/u;
 
 // The look of the popup: the colours come from the variables of the page (--ink, --cinnabar, … of qatt.org and its themes; the values after the comma are the
@@ -49,7 +62,14 @@ const STYLE = `
 #detailModal .list-group-item { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--dm-line) !important; border-radius: 0 !important; margin: 0 !important; color: var(--dm-ink); }
 #detailModal .list-group-item:last-child { border-bottom: 0 !important; }
 #detailModal .list-group-item-action:hover { background: color-mix(in srgb, var(--dm-paper) 60%, transparent) !important; }
-#detailModal .glyph-box { min-width: 120px; height: 160px; flex-shrink: 0; cursor: pointer; border-color: var(--dm-line) !important; }
+#detailModal .glyph-box { min-width: 120px; height: 160px; flex-shrink: 0; cursor: pointer; border-color: var(--dm-line) !important; position: relative; }
+#detailModal .so-play { position: absolute; right: .3rem; bottom: .3rem; width: 1.9rem; height: 1.9rem; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--dm-line); background: color-mix(in srgb, var(--dm-bg) 80%, transparent); color: var(--dm-muted); font-size: 1.15rem; line-height: 1; }
+#detailModal .so-play:hover { color: var(--dm-ink); }
+#detailModal .glyph-box.so-playing > :not(.so-overlay) { visibility: hidden !important; }   /* whatever the box shows (the animated gif, an svg, the character as text) is hidden while the animation plays; !important: the image has an inline visibility of its own */
+#detailModal .so-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity .5s; }
+#detailModal .so-overlay.so-out { opacity: 0; }
+#detailModal .so-overlay .so-svg { width: auto; height: 100%; aspect-ratio: 1; }
 #detailModal .badge-rank { font-weight: 400; border: 1px solid var(--dm-field); color: var(--dm-muted); font-size: .65rem; background: transparent; }
 #detailModal .clickable-meta { cursor: pointer; transition: opacity .2s; }
 #detailModal .clickable-meta:hover { opacity: 1 !important; text-decoration: underline; }
@@ -114,6 +134,8 @@ class ChunomDetail {
   static #instance;
   static #data;
   static #audio;
+  static #bonet;
+  static #bonetReadings;
 
   static get() { return ChunomDetail.#instance ??= new ChunomDetail(); }
 
@@ -162,6 +184,20 @@ class ChunomDetail {
       .then(response => response.ok ? response.text() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then(text => ChunomDetail.get().parseCSV(text))
       .catch(err => { ChunomDetail.#data = null; throw err; });
+  }
+
+  /** The places of a character in the Bonet dictionary { char: [[displayed page, x0, y0, x1, y1], …] } (dict/data/bonet-chars.json, loaded once; {} when it cannot be loaded). */
+  static loadBonet() {
+    return ChunomDetail.#bonet ??= fetch(new URL('../dict/data/bonet-chars.json', BASE))
+      .then(response => response.ok ? response.json() : {})
+      .catch(() => ({}));
+  }
+
+  /** The readings of a character on a page of Bonet, read from the scan or derived from the headwords of the page { read: { char: [[page, reading, …], …] }, derived: { the same } } (dict/data/bonet-readings.json, loaded once). */
+  static loadBonetReadings() {
+    return ChunomDetail.#bonetReadings ??= fetch(new URL('../dict/data/bonet-readings.json', BASE))
+      .then(response => response.ok ? response.json() : {})
+      .catch(() => ({}));
   }
 
   static loadScript(src, ready) {
@@ -262,6 +298,7 @@ class ChunomDetail {
         this.showDetails(null, nomChar.dataset.char);
         return;
       }
+      if (e.target.closest('.so-play, .so-overlay')) return;   // the play button and the animation on the glyph are no clicks to copy it
       const copy = e.target.closest('[data-copy]');
       if (copy) this.copyText(copy.dataset.copy, copy);
     }, true);
@@ -506,12 +543,56 @@ class ChunomDetail {
   // only the entries of the list, not the head of the popup with the readings of the character itself. Drawn again when the choice changes.
   reading(qn) {
     const span = el('span', { className: 'text-secondary fw-bold fs-5 entry-reading', lang: 'vi', 'data-qn': qn });
-    if (window.Readings) Readings.fill(span, qn); else span.textContent = qn;
+    this.fillReading(span);
     if (!this.readingsHooked && window.Readings) {
       this.readingsHooked = true;
-      document.addEventListener('readingschange', () => this.modalBody?.querySelectorAll('.entry-reading').forEach(e => Readings.fill(e, e.dataset.qn)));
+      document.addEventListener('readingschange', () => this.modalBody?.querySelectorAll('.entry-reading').forEach(e => this.fillReading(e)));
     }
     return span;
+  }
+
+  // The reading next to an entry without PA: PA is already drawn as ruby over the Chữ Nôm (entryNom), so it is left out here
+  fillReading(span) {
+    const qn = span.dataset.qn;
+    if (!window.Readings) return span.textContent = qn;
+    const kinds = Readings.shown().filter(k => k !== 'pa');
+    if (!kinds.length) return span.replaceChildren();
+    if (!kinds.includes('qatt')) return span.replaceChildren(...[kinds.includes('qn') ? qn : null].filter(Boolean));
+    Readings.ready().then(() => {
+      if (span.dataset.qn !== qn) return;
+      span.replaceChildren(...kinds.map(k => { const s = document.createElement('span'); s.className = 'rd-' + k; s.textContent = Readings.text(qn, k); return s; }));
+    }, () => span.textContent = qn);
+  }
+
+  // The Chữ Nôm of a dictionary entry. With PA chosen in the readings, every character gets its PA syllable as ruby: the PA text directly behind the
+  // character with U+F00B0 between them, no tag in between (the font puts the PA over the character). Without PA, or if the syllables do not match
+  // the characters, the usual images. Drawn again when the choice changes.
+  entryNom(nom, qn) {
+    const span = el('span', { className: 'fs-3 me-2 entry-nom', 'data-nom': nom, 'data-qn': qn });
+    this.fillNom(span);
+    if (!this.nomHooked && window.Readings) {
+      this.nomHooked = true;
+      document.addEventListener('readingschange', () => this.modalBody?.querySelectorAll('.entry-nom').forEach(e => this.fillNom(e)));
+    }
+    return span;
+  }
+
+  fillNom(span) {
+    const nom = span.dataset.nom, qn = span.dataset.qn || '';
+    const plain = () => span.replaceChildren(...this.nomChars(nom));
+    if (!window.Readings || !Readings.state.pa) return plain();
+    const chars = [...nom], syl = qn.trim().split(/\s+/);
+    if (chars.length !== syl.length) return plain();
+    plain();
+    Readings.ready().then(() => {
+      if (!Readings.state.pa || span.dataset.nom !== nom) return;
+      const parts = chars.map((ch, i) => {
+        const pa = NOM_CHAR.test(ch) ? Readings.text(syl[i], 'pa') : null;
+        if (!pa || pa === syl[i]) return null;
+        return el('span', { className: 'nom-char nom-ruby', 'data-char': ch, style: 'font-family: var(--font-cjk, "QATT Pen"), serif; font-size: 52px; line-height: 1.4' }, ch + String.fromCodePoint(0xF00B0) + pa);
+      });
+      if (parts.every(Boolean)) span.replaceChildren(...parts);
+    }, () => {});
   }
 
   // Nôm-Zeichen als Bild aus chunom-assets (Schrift als Ersatz), einzeln anklickbar
@@ -541,6 +622,30 @@ class ChunomDetail {
     });
     img.src = sources[0];
     return img;
+  }
+
+  // A play button on the big glyph (when there is a stroke order for it): the animation covers the glyph, after its end and 2 seconds it fades out and the glyph is back; a click on it starts it again.
+  async attachStrokeOrder(box, nom) {
+    const SO = await loadStrokeOrder();
+    const record = SO && await SO.load(nom);
+    if (!record || !box.isConnected) return;
+    const label = window.Lang ? Lang.t('Stroke order', 'Thứ tự nét') : 'Stroke order';
+    const button = el('button', { type: 'button', className: 'so-play', title: label, 'aria-label': label, 'data-vi-title': 'Thứ tự nét', 'data-vi-aria-label': 'Thứ tự nét' }, el('i', { className: 'bi bi-play-fill' }));
+    box.append(button);
+    button.addEventListener('click', event => {
+      event.stopPropagation();   // not a click to copy the glyph
+      const overlay = el('div', { className: 'so-overlay' });
+      box.append(overlay);
+      box.classList.add('so-playing');
+      button.hidden = true;
+      const done = () => {
+        box.classList.remove('so-playing');   // the glyph is back under the overlay while that fades out
+        overlay.classList.add('so-out');
+        setTimeout(() => { overlay.remove(); button.hidden = false; }, 500);
+      };
+      SO.play(overlay, record, { onEnd: done });
+      overlay.addEventListener('click', ev => ev.stopPropagation());
+    });
   }
 
   async copyText(text, target) {
@@ -630,11 +735,28 @@ class ChunomDetail {
         hex && el('div', { className: 'small text-secondary font-monospace', textContent: `U+${hex}` })),
       img => Object.assign(img.style, { visibility: 'hidden', marginTop: '-32px', height: '160px' }));
     glyph.addEventListener('load', () => { glyph.style.visibility = 'visible'; });
+    const glyphBox = el('div', { className: 'd-flex align-items-center justify-content-center rounded border glyph-box px-2', title: 'Click to copy glyph', 'data-copy': mainNom }, glyph);
 
+    if (hex) this.attachStrokeOrder(glyphBox, mainNom);   // only for a single character, not for a compound
+    // The pages of the scanned Bonet dictionary (1899) with this character as a headword; the link carries the box of the glyph on the page image (#<page>@x0,y0,x1,y1)
+    const bonetBox = el('div', { className: 'bonet-pages' });
+    // with the readings of the character there (muted; read from the scan upright, derived from the headwords of the page in italics, a guess)
+    if (hex) Promise.all([ChunomDetail.loadBonet(), ChunomDetail.loadBonetReadings()]).then(([index, derived]) => {
+      const places = (index[mainNom] || []).filter((place, i, all) => all.findIndex(other => other[0] === place[0]) === i);   // one link per page
+      if (!places.length || this.currentNom !== mainNom) return;
+      const at = (kind, page) => (derived[kind]?.[mainNom] || []).find(p => p[0] === page)?.slice(1) || [];
+      bonetBox.replaceChildren('Bonet 1899: ', ...places.flatMap(([page, ...box], i) => {
+        const read = at('read', page), readings = read.length ? read : at('derived', page);
+        const title = read.length ? ['Read from the scan', 'Đọc từ bản quét'] : ['Derived from the headwords of the page', 'Suy ra từ các mục từ của trang'];
+        return [i ? ', ' : '',
+          el('a', { href: `${SITE}chunom/dict/bonet.html#${page}@${box.join(',')}`, className: 'text-reset', title: `Bonet 1899, page ${page}`, textContent: `p. ${page}` }),
+          readings.length ? el('span', { className: 'text-body-secondary' + (read.length ? '' : ' fst-italic'), title: window.Lang ? Lang.t(...title) : title[0], textContent: ` ${readings.join(' / ')}` }) : ''].filter(Boolean);
+      }));
+    });
     this.modalBody.replaceChildren(
       el('div', { className: 'd-flex align-items-start gap-4 mb-4 p-2' },
         el('div', { className: 'd-flex flex-column align-items-center' },
-          el('div', { className: 'd-flex align-items-center justify-content-center rounded border glyph-box px-2', title: 'Click to copy glyph', 'data-copy': mainNom }, glyph),
+          glyphBox,
           this.relatedBox),
         el('div', { className: 'flex-grow-1' },
           // Kopfzeile nur Quốc Ngữ, QATT steht darunter
@@ -653,12 +775,13 @@ class ChunomDetail {
               ' - ',
               el('span', { className: 'clickable-meta border-bottom font-serif', title: 'Click to copy', 'data-copy': mainNom, textContent: mainNom })),
             strokes && el('div', { textContent: `Strokes: ${strokes}` }),
+            bonetBox,
             rank && el('div', {}, 'Rank: ', el('span', { className: 'badge badge-rank', textContent: `#${rank}` }))))),
       el('div', { className: 'list-group list-group-flush border-top' }, sortedRelated.map(r => {
         const item = el('div', { className: `list-group-item ${r[1] !== mainNom ? 'list-group-item-action' : ''} py-3 px-0` },
           el('div', { className: 'd-flex align-items-center justify-content-between mb-1' },
             el('div', { className: 'd-flex align-items-center flex-wrap' },
-              el('span', { className: 'fs-3 me-2' }, this.nomChars(r[1])),
+              this.entryNom(r[1], r[0]),
               this.reading(r[0]))),
           el('div', { className: 'd-flex justify-content-between align-items-center w-100' },
             el('div', { className: 'text-secondary small text-truncate flex-grow-1', textContent: r[2] || 'No description' }),
