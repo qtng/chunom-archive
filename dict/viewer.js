@@ -608,7 +608,9 @@ export class DictionaryViewer {
 				ui.img.style.transition = ui.img.style.transform = ui.img.style.opacity = '';
 				this.turning = false;
 			}
-			this.imageSize = { w: probe.naturalWidth, h: probe.naturalHeight };
+			// the boxes of the index are in the pixels of a page coordWidth wide (Bonet: 1422, the first scans); the images may be larger
+			const cw = c.coordWidth || probe.naturalWidth;
+			this.imageSize = { w: cw, h: probe.naturalHeight * cw / probe.naturalWidth };
 			ui.img.onload = () => { this.renderGlyphs(); this.placeMark(); }; // after the layout, so that the scroll to the mark finds its place
 			ui.img.src = url;
 			ui.img.alt = `${c.short}, page ${this.page}`;
