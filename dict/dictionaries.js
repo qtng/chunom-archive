@@ -51,7 +51,7 @@ export const DICTIONARIES = {
 		subtitle: 'Dictionnaire Annamite-Français',
 		note: 'Langue officielle et langue vulgaire',
 		glyphs: true, // the characters found on the pages (data/bonet-chars.json …): spots on the scan, the strip "On this page", the search by character (viewer.js)
-		pageUrl: n => `/chunom-dict/bonet/${n}.webp`, // repository qtng/chunom-dict (folder bonet/): the greyscale scan of archive.org (Boston Public Library), 1.5 times the first scans (Gallica, black and white, chunom-assets dict/bonnet/)
+		pageUrl: n => `/chunom-dicts/bonet/${n}.webp`, // repository qtng/chunom-dicts (folder bonet/): the greyscale scan of archive.org (Boston Public Library), 1.5 times the first scans (Gallica, black and white, chunom-assets dict/bonnet/)
 		coordWidth: 1422, // the boxes of data/bonet-chars.json are in pixels of the first scans
 		offset: 39,
 		lastImage: 1032,
