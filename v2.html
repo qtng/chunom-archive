@@ -92,6 +92,8 @@ body:not(.details) .full { display: none !important; }
 .clist { list-style: none; padding: 0; margin: .3rem 0 0; columns: 2 18rem; column-gap: 1.5rem; }
 .clist li { break-inside: avoid; display: flex; gap: .5rem; align-items: baseline; padding: .15rem 0; border-bottom: 1px solid var(--line); }
 .clist a { white-space: nowrap; }
+.clist.wide { columns: 1; }
+.clist.wide a { white-space: normal; }
 .cnom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 1.15rem; line-height: 1; }
 .cg { flex: 1; min-width: 0; color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cn { font-size: .75rem; color: var(--muted); white-space: nowrap; }
@@ -209,8 +211,12 @@ const UNITS = Object.entries(DATA.units).filter(([u, x]) => !x[3] && !BYWORD.has
 // the compounds of every syllable: the longer words of the inventory and the units the run named (not in the dictionary: "neu")
 const COMP = new Map();
 const addComp = (c) => { for (const syl of new Set(c.w.split(' '))) { if (!COMP.has(syl)) COMP.set(syl, []); COMP.get(syl).push(c); } };
-for (const w of WORDS) if (w.syll > 1) addComp({ w: w.w, ref: w, gloss: w.s[0] ? w.s[0][1] : '', rank: 1e6 + w.f, label: () => w.f ? NUM(w.f) + '×' : '', isNew: w.noEntry });
-for (const u of UNITS) addComp({ w: u.w, unit: true, gloss: u.gloss, rank: u.n, label: () => L(u.n + '× in sentences', u.n + '× trong câu'), isNew: true });
+// a compound: a longer word of the inventory; a name (its English gloss starts with a capital: Department of …, Communist Party …) and the
+// units that a labelling run named in a sentence (phrases, names, unchecked) are kept apart and shown only with the details
+const isName = g => /^\p{Lu}/u.test((g || '').trim());
+for (const w of WORDS) if (w.syll > 1) addComp({ w: w.w, ref: w, gloss: w.s[0] ? w.s[0][1] : '', rank: 1e6 + w.f, label: () => w.f ? NUM(w.f) + '×' : '', isNew: w.noEntry,
+  type: isName(w.s[0] && w.s[0][1]) ? 'name' : 'word' });
+for (const u of UNITS) addComp({ w: u.w, unit: true, type: 'unit', gloss: u.gloss, rank: u.n, label: () => L(u.n + '× in sentences', u.n + '× trong câu'), isNew: true });
 for (const list of COMP.values()) list.sort((a, b) => b.rank - a.rank);
 
 const $ = id => document.getElementById(id);
@@ -295,18 +301,22 @@ function renderLean(w) {
 // the compounds of a one-syllable word: a list (word, its spelling, meaning, frequency), the rest behind a button
 function compList(w) {
   if (w.syll !== 1) return null;
-  const all = (COMP.get(w.w) || []).filter(c => c.w !== w.w && (DETAILS || !c.unit));
-  if (!all.length) return null;
+  const mine = (COMP.get(w.w) || []).filter(c => c.w !== w.w);
+  const all = mine.filter(c => c.type === 'word'), other = DETAILS ? mine.filter(c => c.type !== 'word') : [];
+  if (!all.length && !other.length) return null;
   const row = c => el('li', {},
     el('a', { href: '#', onclick: e => { e.preventDefault(); search(c.w, c.unit ? 'units' : 'all'); } }, c.w),
     c.ref && spellingsOf(c.ref).length ? el('span', { className: 'cnom' }, spellingsOf(c.ref)[0]) : null,
     el('span', { className: 'cg', title: c.ref ? meaning(c.ref.s[0]) : c.gloss }, c.ref ? meaning(c.ref.s[0]) : c.gloss),
     el('span', { className: 'cn' }, c.label()),
-    DETAILS && c.isNew ? el('span', { className: 'badge-new' }, T('new', 'mới')) : null);
+    DETAILS && c.isNew && c.type === 'word' ? el('span', { className: 'badge-new' }, T('new', 'mới')) : null);
   const N = 8, ul = el('ul', { className: 'clist' }, all.slice(0, N).map(row));
-  const box = el('div', { className: 'comps' }, el('b', {}, T(`Compounds (${all.length})`, `Từ ghép (${all.length})`)), ul);
+  const box = el('div', { className: 'comps' });
+  if (all.length) box.append(el('b', {}, T(`Compounds (${all.length})`, `Từ ghép (${all.length})`)), ul);
   if (all.length > N) box.append(el('button', { type: 'button', className: 'more-btn', onclick: e => { ul.append(...all.slice(N).map(row)); e.currentTarget.remove(); } },
     T(`show all ${all.length}`, `hiện tất cả ${all.length}`)));
+  if (other.length) box.append(el('details', {}, el('summary', {}, T(`Names and phrases from the sentences (${other.length}, unchecked)`, `Tên riêng và cụm từ trong các câu (${other.length}, chưa kiểm)`)),
+    el('ul', { className: 'clist wide' }, other.map(row))));
   return box;
 }
 // the view of one character: every word and sense that is written with it (one-syllable words: its readings; longer words: their spelling)
