@@ -89,14 +89,19 @@ details .entry { margin: .25rem 0 .25rem 1rem; }
 #more { height: 1px; }
 body:not(.details) .full { display: none !important; }
 /* the compounds: a list, the rest behind a button */
-.clist { list-style: none; padding: 0; margin: .3rem 0 0; columns: 2 18rem; column-gap: 1.5rem; }
-.clist li { break-inside: avoid; display: flex; gap: .5rem; align-items: baseline; padding: .15rem 0; border-bottom: 1px solid var(--line); }
-.clist a { white-space: nowrap; }
-.clist.wide { columns: 1; }
-.clist.wide a { white-space: normal; }
-.cnom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 1.15rem; line-height: 1; }
-.cg { flex: 1; min-width: 0; color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a list of links: per item the word, its spelling and frequency on one line, the meaning in full below; one column on a phone */
+.clist { list-style: none; padding: 0; margin: .3rem 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); column-gap: 1.5rem; }
+.clist li { padding: .4rem 0; border-bottom: 1px solid var(--line); }
+.clist .ct { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; }
+.clist .ct a { font-weight: 600; }
+.clist .ct .cn { margin-left: auto; }
+.cnom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 1.3rem; line-height: 1; }
+.cg { color: var(--muted); font-size: .88rem; }
 .cn { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+/* the names and phrases of the sentences: not words of the dictionary, but how the words are used today */
+.phrases { margin-top: .8rem; padding: .5rem .8rem; border-left: 3px solid var(--accent); background: color-mix(in srgb, currentColor 4%, transparent); border-radius: 0 .4rem .4rem 0; }
+.phrases summary { color: var(--ink); font-weight: 600; }
+.phrases .note { color: var(--muted); font-size: .82rem; margin: .3rem 0; }
 .more-btn { border: 0; background: none; color: var(--accent); font-size: .85rem; padding: .3rem 0 0; }
 /* the view of one character */
 .charhead { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.2rem; }
@@ -302,21 +307,25 @@ function renderLean(w) {
 function compList(w) {
   if (w.syll !== 1) return null;
   const mine = (COMP.get(w.w) || []).filter(c => c.w !== w.w);
-  const all = mine.filter(c => c.type === 'word'), other = DETAILS ? mine.filter(c => c.type !== 'word') : [];
+  const all = mine.filter(c => c.type === 'word'), other = mine.filter(c => c.type !== 'word');
   if (!all.length && !other.length) return null;
   const row = c => el('li', {},
-    el('a', { href: '#', onclick: e => { e.preventDefault(); search(c.w, c.unit ? 'units' : 'all'); } }, c.w),
-    c.ref && spellingsOf(c.ref).length ? el('span', { className: 'cnom' }, spellingsOf(c.ref)[0]) : null,
-    el('span', { className: 'cg', title: c.ref ? meaning(c.ref.s[0]) : c.gloss }, c.ref ? meaning(c.ref.s[0]) : c.gloss),
-    el('span', { className: 'cn' }, c.label()),
-    DETAILS && c.isNew && c.type === 'word' ? el('span', { className: 'badge-new' }, T('new', 'mới')) : null);
+    el('div', { className: 'ct' },
+      el('a', { href: '#', onclick: e => { e.preventDefault(); search(c.w, c.unit ? 'units' : 'all'); } }, c.w),
+      c.ref && spellingsOf(c.ref).length ? el('span', { className: 'cnom' }, spellingsOf(c.ref)[0]) : null,
+      DETAILS && c.isNew && c.type === 'word' ? el('span', { className: 'badge-new' }, T('new', 'mới')) : null,
+      el('span', { className: 'cn' }, c.label())),
+    el('div', { className: 'cg' }, c.ref ? meaning(c.ref.s[0]) : c.gloss));
   const N = 8, ul = el('ul', { className: 'clist' }, all.slice(0, N).map(row));
   const box = el('div', { className: 'comps' });
   if (all.length) box.append(el('b', {}, T(`Compounds (${all.length})`, `Từ ghép (${all.length})`)), ul);
   if (all.length > N) box.append(el('button', { type: 'button', className: 'more-btn', onclick: e => { ul.append(...all.slice(N).map(row)); e.currentTarget.remove(); } },
     T(`show all ${all.length}`, `hiện tất cả ${all.length}`)));
-  if (other.length) box.append(el('details', {}, el('summary', {}, T(`Names and phrases from the sentences (${other.length}, unchecked)`, `Tên riêng và cụm từ trong các câu (${other.length}, chưa kiểm)`)),
-    el('ul', { className: 'clist wide' }, other.map(row))));
+  if (other.length) box.append(el('details', { className: 'phrases' },
+    el('summary', {}, T(`In today's texts: names and phrases (${other.length})`, `Trong văn bản ngày nay: tên riêng và cụm từ (${other.length})`)),
+    el('div', { className: 'note' }, T('Found in the sentences of the corpus. Not words of the dictionary; not checked.',
+      'Gặp trong các câu của kho ngữ liệu. Không phải từ của từ điển; chưa được kiểm.')),
+    el('ul', { className: 'clist' }, other.map(row))));
   return box;
 }
 // the view of one character: every word and sense that is written with it (one-syllable words: its readings; longer words: their spelling)
@@ -357,9 +366,9 @@ function renderChar(ch) {
     const all = byFreq(longer), N = 40;
     const row = ([w, rs]) => { const x = (rs.find(r => r.x) || {}).x, sense = rs.find(r => r.i != null);
       const sp = x ? x[0] : (w.s[sense.i][5] || '').split(/[ ,;\/]+/).find(t => t.includes(ch)) || ch;
-      return el('li', {}, link(w), el('span', { className: 'cnom' }, spelled(sp)), el('span', { className: 'cg', title: meaning(w.s[0]) }, meaning(w.s[0])),
+      return el('li', {}, el('div', { className: 'ct' }, link(w), el('span', { className: 'cnom' }, spelled(sp)),
         DETAILS && x ? [el('span', { className: 'tag' }, tr(SRC, x[1])), x[2] ? el('span', { className: 'tag' }, tr(CONF, x[2])) : null, x[3] ? el('span', { className: 'tag v-' + x[3] }, tr(VERDICT, x[3])) : null] : null,
-        el('span', { className: 'cn' }, w.f ? NUM(w.f) + '×' : '')); };
+        el('span', { className: 'cn' }, w.f ? NUM(w.f) + '×' : '')), el('div', { className: 'cg' }, meaning(w.s[0]))); };
     const ul = el('ul', { className: 'clist' }, all.slice(0, N).map(row));
     const box = el('div', { className: 'card-box' }, el('h2', {}, T(`In longer words (${longer.size})`, `Trong từ nhiều âm tiết (${longer.size})`)), ul);
     if (all.length > N) box.append(el('button', { type: 'button', className: 'more-btn', onclick: e => { ul.append(...all.slice(N).map(row)); e.currentTarget.remove(); } },
