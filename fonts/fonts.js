@@ -80,7 +80,7 @@
       wm.style.fontFamily = `"${regular(font).css}"`;
       title.textContent = font.name;
       title.style.fontFamily = `"${regular(font).css} Latin", "${regular(font).css}"`;
-      dl.replaceChildren(...font.styles.map(s => el('a.fp-row', { href: data.assets + s.file + '.ttf', download: '' },
+      dl.replaceChildren(...font.styles.map(s => el('a.fp-row', { href: data.assets + s.file + '.ttf', download: '', 'data-stat': 'font_download:' + s.file },
         el('span.fp-sample.fp-sc', { style: `font-family: "${s.css}"`, lang: 'vi-Hani', text: data.sample.line }),
         el('span.fp-meta', {}, el('b', { text: s.name }), el('small', { text: `${s.mb.toLocaleString('en')} MB` })),
         el('span.fp-dl', { 'aria-hidden': 'true' }, el('i.bi.bi-download')))));
