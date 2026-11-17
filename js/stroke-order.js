@@ -34,13 +34,15 @@ function addCss() {
   style.textContent = `
 .so-svg { display: block; width: 100%; height: 100%; --so-fade-to: 0; stroke: none; stroke-width: 0; }   /* no outline: a page may give every svg one, which showed as dark edges on the glyph */
 .so-svg .so-ghost { fill: var(--so-ghost, #8a8a8a); fill-opacity: .42; stroke: none; stroke-width: 0; }
-.so-svg .so-s { fill: none; stroke: var(--so-ink, var(--cinnabar, #a8362a)); stroke-width: var(--so-width, 9); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1;
+.so-svg .so-s { fill: none; stroke: var(--so-ink, var(--cinnabar, #a8362a)); stroke-width: var(--so-width, 9); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 2; stroke-dashoffset: 1.02; opacity: 0;
   animation: so-draw var(--t) ease-in-out var(--b) forwards, so-fade var(--fd) linear var(--e) forwards; }
 .so-svg .so-s.so-last, .so-svg .so-s.so-keep { animation: so-draw var(--t) ease-in-out var(--b) forwards; }
 .so-svg .so-n { opacity: 0; animation: so-pop .15s var(--a) forwards; }
 .so-svg .so-n circle { fill: var(--so-ink, var(--cinnabar, #a8362a)); stroke: #fff; stroke-width: 1.2; }
 .so-svg .so-n text { fill: #fff; font: 700 8.5px system-ui, sans-serif; text-anchor: middle; }
-@keyframes so-draw { to { stroke-dashoffset: 0; } }
+/* a line is drawn by moving a dash along it (pathLength 1). Before its start it is invisible (opacity 0), and the dash starts outside the line (offset above 1) and the
+   gap after it is longer than the line: a dash that starts exactly at the end of the line is a zero-length dash, and some browsers draw that as a dot with a round cap */
+@keyframes so-draw { from { stroke-dashoffset: 1.02; opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
 @keyframes so-fade { to { opacity: var(--so-fade-to); } }
 @keyframes so-pop { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .so-svg .so-s { animation-duration: .01s !important; animation-delay: 0s !important; } }`;
