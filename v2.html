@@ -190,7 +190,7 @@ const BYWORD = new Map(WORDS.map(w => [w.w, w]));
 for (const w of WORDS) {
   w.key = sortKey(w.w); w.ini = initial(w.w); w.syll = w.w.split(' ').length; w.fold = fold(w.w);
   w.hasNew = w.s.some(s => !s[4]); w.nDisputed = (w.d || []).reduce((a, d) => a + d[2], 0); w.noEntry = Object.keys(w.e).length === 0;
-  w.text = fold(w.s.map(s => s[1]).join(' | '));
+  w.text = fold(w.s.map(s => s[1] + ' | ' + s[2]).join(' | '));
   w.n = w.n || [];
   w.hasNom = w.n.some(x => x[0]) || w.s.some(s => s[5]);
 }
@@ -217,6 +217,12 @@ const $ = id => document.getElementById(id);
 const L = (en, vi) => window.Lang && Lang.t ? Lang.t(en, vi) : en;          // a text for an attribute or a string, in the language of the page
 const T = (en, vi) => { const n = document.createElement('span'); n.setAttribute('data-vi', vi); n.textContent = en; return n; };   // a translated tag
 const NUM = n => n.toLocaleString('en');
+// one language at a time: English shows the English gloss, Vietnamese the Vietnamese definition (each falls back to the other)
+const VI = () => L('en', 'vi') === 'vi';
+const meaning = s => s ? (VI() ? (s[2] || s[1]) : (s[1] || s[2])) || '' : '';
+// the sources by their abbreviations only (gdhn, btcn, vhn, tdhv, dict, run, CEDICT, Wikt.)
+const short = from => [...new Set(String(from || '').split(/,\s*/).filter(Boolean)
+  .map(x => x.replace(/ via .*$/, '').replace('labelling run', 'run').replace('dict.csv', 'dict')))].join(' · ');
 const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k in n) n[k] = v; else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k != null && k !== '')); return n; };
 const state = { char: '', page: 0, letter: 'a', q: '', kind: '1', onlyNew: false, noEntry: false, disputed: false, sort: 'abc', nomf: '' };
 let items = [], shown = 0;
@@ -240,7 +246,7 @@ function filtered() {
 }
 
 function nomButton(nom, from) {
-  return el('button', { type: 'button', className: 'nom' + (from && !/labelling run/.test(from) ? ' nom-src' : ''), title: 'Nôm: ' + nom + (from ? ' · ' + L('source', 'nguồn') + ': ' + from : ''),
+  return el('button', { type: 'button', className: 'nom' + (from && !/labelling run/.test(from) ? ' nom-src' : ''), title: 'Nôm: ' + nom + (from ? ' · ' + short(from) : ''),
     onclick: () => openChar(nom) }, nom);
 }
 function openNom(nom) {
@@ -249,7 +255,7 @@ function openNom(nom) {
   ChunomDetail.open(nom);
 }
 // the spelling of a whole word: its source, the confidence of the model (composed only) and the verdict of the check
-const SRC = { composed: ['composed (Haiku)', 'ghép (Haiku)'], cedict: ['CEDICT', 'CEDICT'], wiktionary: ['Wiktionary', 'Wiktionary'] };
+const SRC = { composed: ['composed', 'ghép'], cedict: ['CEDICT', 'CEDICT'], wiktionary: ['Wikt.', 'Wikt.'] };
 const CONF = { high: ['high', 'cao'], medium: ['medium', 'trung bình'], low: ['low', 'thấp'] };
 const VERDICT = { ok: ['checked: ok', 'đã kiểm: đúng'], variant: ['variant', 'biến thể'], doubtful: ['doubtful', 'đáng ngờ'], wrong: ['wrong', 'sai'] };
 const tr = (map, k) => map[k] ? T(...map[k]) : k;
@@ -280,8 +286,7 @@ function renderLean(w) {
   const spell = [...new Set(spellingsOf(w).concat(common))];
   const senses = el('ol', { className: 'senses' }, w.s.map(([pos, gloss, def, reg, eid, nom, n, src, cs, from], i) => el('li', {},
     (nom = sets[i].filter(ch => !common.includes(ch)).join(' ')) ? el('span', { className: 'snom' }, nom.split(/[ ,;\/]+/).filter(Boolean).map(ch => nomButton(ch))) : null,
-    el('span', { className: 'gloss' }, gloss), reg ? el('span', { className: 'reg' }, reg) : null,
-    el('div', { className: 'def' }, def))));
+    el('span', { className: VI() ? 'def' : 'gloss' }, meaning([pos, gloss, def])), reg ? el('span', { className: 'reg' }, reg) : null)));
   return el('div', { className: 'word card-box' },
     el('div', { className: 'hw' }, w.rank ? el('span', { className: 'rank' }, '#' + w.rank) : null, w.w,
       spell.length ? el('span', { className: 'sp' }, spell.map(ch => nomButton(ch))) : null),
@@ -295,7 +300,7 @@ function compList(w) {
   const row = c => el('li', {},
     el('a', { href: '#', onclick: e => { e.preventDefault(); search(c.w, c.unit ? 'units' : 'all'); } }, c.w),
     c.ref && spellingsOf(c.ref).length ? el('span', { className: 'cnom' }, spellingsOf(c.ref)[0]) : null,
-    el('span', { className: 'cg', title: c.gloss }, c.gloss),
+    el('span', { className: 'cg', title: c.ref ? meaning(c.ref.s[0]) : c.gloss }, c.ref ? meaning(c.ref.s[0]) : c.gloss),
     el('span', { className: 'cn' }, c.label()),
     DETAILS && c.isNew ? el('span', { className: 'badge-new' }, T('new', 'mới')) : null);
   const N = 8, ul = el('ul', { className: 'clist' }, all.slice(0, N).map(row));
@@ -336,14 +341,13 @@ function renderChar(ch) {
     byFreq(mono).map(([w, rs]) => el('div', { className: 'cv-word' },
       el('div', { className: 'hw' }, link(w), el('small', {}, T(`${NUM(w.f)}× in the corpus`, `${NUM(w.f)}× trong kho ngữ liệu`))),
       el('ol', { className: 'senses' }, [...new Set(rs.map(r => r.i))].map(i => { const s = w.s[i], r = rs.find(r => r.i === i);
-        return el('li', { value: i + 1 }, el('span', { className: 'gloss' }, s[1]), DETAILS && r.from ? el('span', { className: 'tag' }, r.from) : null,
-          el('div', { className: 'def' }, s[2])); })),
+        return el('li', { value: i + 1 }, el('span', { className: VI() ? 'def' : 'gloss' }, meaning(s)), DETAILS && r.from ? el('span', { className: 'tag' }, short(r.from)) : null); })),
       compList(w)))));
   if (longer.size) {
     const all = byFreq(longer), N = 40;
     const row = ([w, rs]) => { const x = (rs.find(r => r.x) || {}).x, sense = rs.find(r => r.i != null);
       const sp = x ? x[0] : (w.s[sense.i][5] || '').split(/[ ,;\/]+/).find(t => t.includes(ch)) || ch;
-      return el('li', {}, link(w), el('span', { className: 'cnom' }, spelled(sp)), el('span', { className: 'cg', title: w.s[0] ? w.s[0][1] : '' }, w.s[0] ? w.s[0][1] : ''),
+      return el('li', {}, link(w), el('span', { className: 'cnom' }, spelled(sp)), el('span', { className: 'cg', title: meaning(w.s[0]) }, meaning(w.s[0])),
         DETAILS && x ? [el('span', { className: 'tag' }, tr(SRC, x[1])), x[2] ? el('span', { className: 'tag' }, tr(CONF, x[2])) : null, x[3] ? el('span', { className: 'tag v-' + x[3] }, tr(VERDICT, x[3])) : null] : null,
         el('span', { className: 'cn' }, w.f ? NUM(w.f) + '×' : '')); };
     const ul = el('ul', { className: 'clist' }, all.slice(0, N).map(row));
@@ -360,14 +364,13 @@ function renderWord(w) {
   const total = w.s.reduce((a, s) => a + s[6], 0) || 1;
   const senses = el('ol', { className: 'senses' }, w.s.map(([pos, gloss, def, reg, eid, nom, n, src, cs, from]) => el('li', {},
     nom ? el('span', { className: 'snom' }, nom.split(/[ ,;\/]+/).filter(Boolean).map(ch => nomButton(ch, (from || {})[ch]))) : null,
-    el('span', { className: 'pos' }, pos || '?'), el('span', { className: 'gloss' }, gloss),
+    el('span', { className: 'pos' }, pos || '?'), el('span', { className: VI() ? 'def' : 'gloss' }, meaning([pos, gloss, def])),
     reg ? el('span', { className: 'reg' }, reg) : null,
     src === 'dict' ? null : el('span', { className: 'n', title: L('occurrences in the example sentences', 'số lần gặp trong các câu ví dụ') }, `${n}× · ${Math.round(100 * n / total)} %`),
     src && src !== 'dict' ? origin(src, cs) : null,
-    el('div', { className: 'def' }, def),
-    el('div', { className: 'anchor' }, eid
-      ? [el('span', { className: 'hnd' }, `${srcName(eid)} ${entryNo(eid).replace(/^wk/, '')}: `), (w.e[eid] || ['', ''])[1].slice(0, 220) + (((w.e[eid] || ['', ''])[1].length > 220) ? ' …' : '')]
-      : src === 'dict' ? el('span', { className: 'src both' }, T('from dict.csv (chunom.org), not searched in the sentences', 'từ dict.csv (chunom.org), không tìm trong các câu'))
+    el('div', { className: 'anchor' }, eid   // the text of the entry (Vietnamese) only in Vietnamese
+      ? [el('span', { className: 'hnd' }, `${srcName(eid)} ${entryNo(eid).replace(/^wk/, '')}`), VI() ? ': ' + (w.e[eid] || ['', ''])[1].slice(0, 220) + (((w.e[eid] || ['', ''])[1].length > 220) ? ' …' : '') : '']
+      : src === 'dict' ? el('span', { className: 'src' }, 'dict')
       : el('span', { className: 'badge-new' }, T('new – in no dictionary', 'mới – không có trong từ điển nào')))
   )));
   const used = new Set(w.s.map(s => s[4]));
