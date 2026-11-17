@@ -19,87 +19,86 @@ if (location.protocol === 'file:') {
 <script src="https://qatt.org/js/navigation.js"></script>   <!-- the menu, theme, fonts (fonts.js) and readings of the sites -->
 <script defer src="/chunom/js/detail.js"></script>
 <style>
+/* layout only; colours from the variables of the theme (navigation.js writes it; the values here are those of classic), as on the other pages of the site */
 /* cdn.qatt.org gives QATT Pen only to qatt.org and chunom.org (CORS), not to a file opened locally: then Nom Na Tong of chunom.org (CORS open) */
 @font-face { font-family: "Nom Na Tong Supplement"; src: url("/chunom-assets/fonts/nomnatong-supplement.woff2") format("woff2"); font-display: swap; }
-:root { --b-ink: var(--ink, #2b2118); --b-line: var(--line, #e4d9c0); --b-muted: var(--muted, #7b6c58);
-  --b-red: #a8362a; --b-green: #3f6f5a; --b-field: var(--field, #fff); --b-bg: var(--bs-body-bg, #fbf7ee); }
-header { position: sticky; top: 0; z-index: 10; background: var(--b-bg); border-bottom: 1px solid var(--b-line); padding: .6rem 0 .4rem; }
-.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
-h1 { font-family: Georgia, serif; font-size: 1.35rem; margin: 0; }
-.meta { color: var(--b-muted); font-size: .8rem; }
+:root { --ink: #2b2118; --accent: #a8362a; --paper: #f7efdc; --line: #e4d9c0; --field: #cdbf9f; --muted: #7b6c58; }
+body { margin: 0; background: var(--paper); color: var(--ink); }
+.hero { background: radial-gradient(60rem 22rem at 50% -6rem, rgba(168, 54, 42, .10), transparent 70%), linear-gradient(180deg, var(--paper) 0%, #fffdf8 100%);
+  border-bottom: 1px solid #e8dcc0; color: var(--ink); }
+.hero h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: clamp(2rem, 6vw, 3rem); }
+.hero .han { color: var(--accent); font-size: 1.25rem; letter-spacing: .5em; padding-left: .5em; }
+.hero .lead { max-width: 38rem; }
+.wrap { max-width: 52rem; margin: 0 auto; padding: 0 16px; }
+.toolbar { position: sticky; top: 0; z-index: 10; background: var(--paper); border-bottom: 1px solid var(--line); padding: .5rem 0; margin-bottom: 1rem; }
+@media (max-width: 600px) { .toolbar { position: static; } .letters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } }
+.filters { display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: center; font-size: .9rem; }
+.filters .meta { margin-left: auto; color: var(--muted); font-size: .85rem; }
 .letters { display: flex; flex-wrap: wrap; gap: 2px; margin-top: .4rem; }
-@media (max-width: 600px) { .letters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } header { position: static; } }
-.letters button { border: 1px solid transparent; background: none; padding: 1px 6px; border-radius: 6px; font-weight: 600; color: var(--b-ink); min-width: 1.8rem; }
-.letters button.on { background: var(--b-ink); color: var(--b-bg); }
-.letters button:disabled { color: var(--b-line); }
-.filters { display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: center; font-size: .85rem; margin-top: .4rem; }
-.filters select, .filters input[type=search] { font-size: .9rem; }
-.word { border-bottom: 1px solid var(--b-line); padding: .8rem 0; }
-.hw { font-size: 1.3rem; font-weight: 600; }
-.hw small { font-size: .78rem; font-weight: 400; color: var(--b-muted); margin-left: .5rem; }
-ol.senses { padding-left: 1.4rem; margin: .3rem 0 0; }
-ol.senses li { margin: .35rem 0; }
-.pos { display: inline-block; font-size: .7rem; font-weight: 700; padding: 0 .35rem; border-radius: 4px; background: var(--b-line); margin-right: .3rem; vertical-align: 1px; }
+.letters button { border: 0; background: none; color: inherit; padding: 1px 6px; border-radius: 6px; font-weight: 600; min-width: 1.8rem; }
+.letters button.on { background: var(--accent); color: #fff; }
+.letters button:disabled { opacity: .35; }
+.card-box { margin: 0 0 1rem; padding: 1rem 1.1rem; background: #fffdf8; border: 1px solid var(--line); border-radius: .7rem; box-shadow: 0 .35rem 1rem rgba(60, 40, 20, .14); }
+.hw { font-size: 1.35rem; font-weight: 600; }
+.hw small { font-size: .8rem; font-weight: 400; color: var(--muted); margin-left: .5rem; }
+.rank { font-size: .75rem; font-weight: 600; color: var(--muted); margin-right: .5rem; vertical-align: 2px; }
+ol.senses { padding-left: 1.4rem; margin: .5rem 0 0; }
+ol.senses li { margin: .45rem 0; }
+.pos { display: inline-block; font-size: .7rem; font-weight: 700; padding: 0 .35rem; border: 1px solid var(--line); border-radius: 4px; margin-right: .3rem; vertical-align: 1px; color: var(--muted); }
 .gloss { font-style: italic; }
-.def { color: var(--b-ink); opacity: .85; font-size: .92rem; }
-.anchor { font-size: .8rem; color: var(--b-muted); }
-.anchor .hnd { color: var(--b-green); }
-.badge-new { font-size: .7rem; font-weight: 700; color: #fff; background: var(--b-red); border-radius: 4px; padding: 0 .35rem; margin-left: .3rem; }
-.reg { font-size: .72rem; color: var(--b-muted); border: 1px solid var(--b-line); border-radius: 4px; padding: 0 .3rem; margin-left: .3rem; }
-.n { font-size: .75rem; color: var(--b-muted); margin-left: .3rem; }
-.nom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 2rem; line-height: 1.1; border: 1px solid var(--b-line); background: var(--b-field); border-radius: 6px;
-  padding: .15rem .35rem; margin-left: .35rem; color: var(--b-ink); vertical-align: -2px; cursor: pointer; }
+.def { font-size: .95rem; }
+.anchor { font-size: .82rem; color: var(--muted); }
+.anchor .hnd { font-weight: 600; }
+.badge-new { font-size: .7rem; font-weight: 700; color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 .35rem; margin-left: .3rem; }
+.reg, .n, .tag { font-size: .75rem; color: var(--muted); margin-left: .3rem; }
+.reg, .tag { border: 1px solid var(--line); border-radius: 4px; padding: 0 .3rem; white-space: nowrap; }
+/* the Nôm characters: the most important thing of an entry */
+.nom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 2rem; line-height: 1.1; color: inherit; background: none;
+  border: 1px solid var(--line); border-radius: 6px; padding: .1rem .3rem; cursor: pointer; vertical-align: middle; }
+.nom:hover { color: var(--accent); border-color: currentColor; }
 .snom { margin-right: .4rem; }
 .snom .nom { margin: .1rem .25rem .1rem 0; }
-.nom.nom-src { border-color: #b9d3c6; }   /* only a source (dict.csv, …) gives it, not the labelling run */
-.nom:hover { border-color: var(--b-red); color: var(--b-red); }
-details { font-size: .85rem; margin-top: .35rem; }
-details summary { color: var(--b-muted); cursor: pointer; }
-details .entry { margin: .25rem 0 .25rem 1rem; }
-.units a { margin-right: .5rem; white-space: nowrap; }
-.unit-new { color: var(--b-red); }
-.comps { margin-top: .45rem; font-size: .86rem; }
-.comps b { font-size: .78rem; color: var(--b-muted); font-weight: 600; margin-right: .3rem; }
-.comp { display: inline-block; margin: .12rem .25rem .12rem 0; padding: .05rem .45rem; border: 1px solid var(--b-line); border-radius: 999px; background: var(--b-field);
-  color: var(--b-ink); text-decoration: none; }
-.comp i { color: var(--b-muted); font-size: .78rem; margin-left: .25rem; }
-.comp.new { border-color: #e6b7ae; }
-.comp.new::after { content: attr(data-new); font-size: .62rem; font-weight: 700; color: #fff; background: var(--b-red); border-radius: 3px; padding: 0 .2rem; margin-left: .3rem; vertical-align: 1px; }
-.comps button { border: 0; background: none; color: var(--b-red); font-size: .8rem; padding: 0; }
-.empty { color: var(--b-muted); padding: 2rem 0; text-align: center; }
-#more { height: 1px; }
-.src { font-size: .7rem; border-radius: 4px; padding: 0 .35rem; margin-left: .3rem; vertical-align: 1px; white-space: nowrap; }
-.src.both { color: var(--b-green); border: 1px solid #b9d3c6; }
-.src.one { color: #8a6d1f; border: 1px solid #e3d29a; background: #fbf4dc; }
-.src b { color: var(--b-red); }
-.disputes summary { color: var(--b-red); }
-.rank { font-size: .75rem; font-weight: 600; color: var(--b-muted); background: var(--b-line); border-radius: 999px; padding: 0 .45rem; margin-right: .5rem; vertical-align: 2px; }
-.pager { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; justify-content: center; padding: .8rem 0; font-size: .9rem; }
-.pager button { border: 1px solid var(--b-line); background: var(--b-field); border-radius: 6px; padding: .15rem .7rem; color: var(--b-ink); }
-.pager button:disabled { color: var(--b-line); }
-.pager input { width: 4.2rem; text-align: center; }
-.wnom { margin-top: .4rem; font-size: .85rem; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; }
-.wnom > b { font-size: .78rem; color: var(--b-muted); font-weight: 600; margin-right: .2rem; }
-.sp { display: inline-block; }
-.sp .nom { margin-left: 0; font-size: 2.8rem; padding: .2rem .5rem; }   /* the spelling of the whole word: the most important thing of the entry */
+.wnom { margin-top: .5rem; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; font-size: .85rem; }
+.wnom > b { font-size: .8rem; color: var(--muted); font-weight: 600; }
 .wnom .sp { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
-.tag { font-size: .7rem; border-radius: 4px; padding: 0 .35rem; margin-left: .25rem; vertical-align: 1px; border: 1px solid var(--b-line); color: var(--b-muted); white-space: nowrap; }
-.v-ok { color: var(--b-green); border-color: #b9d3c6; }
-.v-variant { color: #8a6d1f; border-color: #e3d29a; background: #fbf4dc; }
-.v-doubtful { color: #b25a00; border-color: #f0c99a; background: #fff3e3; }
-.v-wrong { color: #fff; background: var(--b-red); border-color: var(--b-red); }
-.sp details { display: inline; font-size: .78rem; margin-left: .25rem; }
+.sp .nom { font-size: 2.8rem; padding: .2rem .5rem; }
+.sp details { display: inline; font-size: .8rem; margin-left: .25rem; }
 .sp details[open] { display: block; margin: .2rem 0 .2rem 1rem; }
-.sp details .part { color: var(--b-ink); opacity: .85; }
+/* the verdict of the check: the colours of Bootstrap (they follow a dark theme) */
+.v-ok { color: var(--bs-success-text-emphasis); border-color: var(--bs-success-border-subtle); }
+.v-variant { color: var(--bs-warning-text-emphasis); border-color: var(--bs-warning-border-subtle); }
+.v-doubtful { color: var(--bs-warning-text-emphasis); border-color: var(--bs-warning-border-subtle); background: var(--bs-warning-bg-subtle); }
+.v-wrong { color: var(--bs-danger-text-emphasis); border-color: var(--bs-danger-border-subtle); background: var(--bs-danger-bg-subtle); }
+.src { font-size: .72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 .35rem; margin-left: .3rem; white-space: nowrap; }
+.src b { color: var(--accent); }
+details { font-size: .88rem; margin-top: .4rem; }
+details summary { color: var(--muted); cursor: pointer; }
+details .entry { margin: .25rem 0 .25rem 1rem; }
+.disputes summary { color: var(--accent); }
+.units a { margin-right: .5rem; white-space: nowrap; }
+.comps { margin-top: .6rem; font-size: .88rem; }
+.comps b { font-size: .8rem; color: var(--muted); font-weight: 600; margin-right: .3rem; }
+.comp { display: inline-block; margin: .12rem .25rem .12rem 0; padding: .05rem .5rem; border: 1px solid var(--line); border-radius: 999px; color: inherit; text-decoration: none; }
+.comp:hover { color: var(--accent); border-color: currentColor; }
+.comp i { color: var(--muted); font-size: .8rem; margin-left: .25rem; }
+.comp.new::after { content: attr(data-new); font-size: .65rem; font-weight: 700; color: var(--accent); margin-left: .3rem; }
+.comps button { border: 0; background: none; color: var(--accent); font-size: .85rem; padding: 0; }
+.empty { color: var(--muted); padding: 2rem 0; text-align: center; }
+#more { height: 1px; }
+.pager { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; justify-content: center; padding: .4rem 0 1rem; font-size: .9rem; }
+.pager input { width: 4.5rem; text-align: center; }
 </style>
 </head>
 <body>
-<header>
+<header class="hero pt-4 pt-sm-5 pb-4">
+  <div class="container text-center">
+    <div class="han mb-2">詞彙</div>
+    <h1 class="mb-2" data-vi="Kho từ vựng">Word inventory</h1>
+    <p class="lead mx-auto mb-0" data-vi="Các từ của một kho ngữ liệu tiếng Việt, nghĩa của chúng và cách viết bằng chữ Nôm. Bản xem trước.">The words of a Vietnamese corpus, their senses and their spelling in Chữ Nôm. A preview.</p>
+  </div>
+</header>
+<div class="toolbar">
   <div class="wrap">
-    <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2">
-      <h1 data-vi="Kho từ vựng">Word inventory</h1>
-      <span class="meta" id="meta"></span>
-    </div>
     <div class="filters">
       <input type="search" id="q" class="form-control form-control-sm" style="max-width: 15rem" placeholder="Search: đường, duong, road …" data-vi-placeholder="Tìm: đường, duong, road …">
       <select id="kind" class="form-select form-select-sm" style="width: auto">
@@ -126,10 +125,11 @@ details .entry { margin: .25rem 0 .25rem 1rem; }
         <option value="abc" data-vi="theo chữ cái">alphabetical</option>
         <option value="freq" data-vi="theo tần suất">by frequency</option>
       </select>
+      <span class="meta" id="meta"></span>
     </div>
     <div class="letters" id="letters"></div>
   </div>
-</header>
+</div>
 <main class="wrap" id="list"></main>
 <div id="more"></div>
 
@@ -283,11 +283,11 @@ function renderWord(w) {
       onclick: e => e.target.replaceWith(...comps.slice(24).map(chip)) }));
     kids.push(box);
   }
-  return el('div', { className: 'word' }, kids);
+  return el('div', { className: 'word card-box' }, kids);
 }
 function renderUnit(u) {
   const contains = u.w.split(' ').filter(s => BYWORD.has(s));
-  return el('div', { className: 'word' },
+  return el('div', { className: 'word card-box' },
     el('div', { className: 'hw' }, u.rank ? el('span', { className: 'rank' }, '#' + u.rank) : null, u.w, el('small', {}, T(`${u.n}× in the example sentences`, `${u.n}× trong các câu ví dụ`))),
     el('div', {}, el('span', { className: 'pos' }, u.pos || '?'), el('span', { className: 'gloss' }, u.gloss), el('span', { className: 'badge-new' }, T('not in HND', 'không có trong HND'))),
     el('div', { className: 'anchor units' }, T('Syllables:', 'Âm tiết:'), ' ', contains.map(s => el('a', { href: '#', onclick: e => { e.preventDefault(); search(s, 'all'); } }, s))));
@@ -300,11 +300,11 @@ function pager() {
   const input = el('input', { type: 'number', className: 'form-control form-control-sm', min: 1, max: pages, value: state.page + 1,
     onchange: () => go(+input.value - 1) });
   return el('div', { className: 'pager' },
-    el('button', { type: 'button', disabled: state.page === 0, onclick: () => go(0) }, T('« First', '« Đầu')),
-    el('button', { type: 'button', disabled: state.page === 0, onclick: () => go(state.page - 1) }, T('‹ Back', '‹ Trước')),
+    el('button', { type: 'button', className: 'btn btn-quiet btn-pill btn-sm', disabled: state.page === 0, onclick: () => go(0) }, T('« First', '« Đầu')),
+    el('button', { type: 'button', className: 'btn btn-quiet btn-pill btn-sm', disabled: state.page === 0, onclick: () => go(state.page - 1) }, T('‹ Back', '‹ Trước')),
     T('Page', 'Trang'), ' ', input, ' ', T(`of ${pages}`, `trên ${pages}`),
-    el('button', { type: 'button', disabled: state.page >= pages - 1, onclick: () => go(state.page + 1) }, T('Next ›', 'Sau ›')),
-    el('button', { type: 'button', disabled: state.page >= pages - 1, onclick: () => go(pages - 1) }, T('Last »', 'Cuối »')));
+    el('button', { type: 'button', className: 'btn btn-quiet btn-pill btn-sm', disabled: state.page >= pages - 1, onclick: () => go(state.page + 1) }, T('Next ›', 'Sau ›')),
+    el('button', { type: 'button', className: 'btn btn-quiet btn-pill btn-sm', disabled: state.page >= pages - 1, onclick: () => go(pages - 1) }, T('Last »', 'Cuối »')));
 }
 function more() {
   const list = $('list'), end = Math.min(items.length, shown + 150);
