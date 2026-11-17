@@ -643,7 +643,7 @@ class ChunomDetail {
         overlay.classList.add('so-out');
         setTimeout(() => { overlay.remove(); button.hidden = false; }, 500);
       };
-      SO.play(overlay, record, { onEnd: done, speed: 2 });
+      SO.play(overlay, record, { onEnd: done });
       overlay.addEventListener('click', ev => ev.stopPropagation());
     });
   }
