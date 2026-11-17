@@ -1,14 +1,17 @@
 /*
-  The stroke order of a character as a short animation: the glyph in grey, the strokes drawn one after the other as thin lines over it.
+  The stroke order of a character as a short animation: the glyph in grey, the strokes drawn one after the other over it with a thick felt-tip line.
   The data is one file per character, https://cdn.qatt.org/stroke/r1/<HEX>.json (made in the private repository qtng/chunom-private); there is none for every character.
 
     StrokeOrder.load("國")  -> Promise of the record, null when there is none
     StrokeOrder.play(host, record, options) -> { restart(), stop() }   draws into host (an element), a click on the drawing starts it again
-      options: numbers (show the number of every stroke, default false), fadeTo (the opacity the strokes before fade to, 0 = they vanish, a viewer may keep some),
-               speed (1), hold (ms to wait after the last stroke before onEnd, 2000), onEnd (called then), color / ghost (CSS colours)
+      options: numbers (show the number of every stroke, default false), fade (true: the strokes before fade while the next ones are drawn, false: they stay; default: only
+               when the lines were reconstructed from the IDS, see below), fadeTo (the opacity the faded strokes end at, 0 = they vanish, a viewer may keep some),
+               speed (1 = the first version's pace), hold (ms to wait after the last stroke before onEnd, 2000), onEnd (called then), color / ghost (CSS colours)
 
-  Every stroke but the last fades while the next ones are drawn, so that two or three are to be seen at a time (the lines sit only about where the glyph has its strokes,
-  this hides it). The look comes from CSS variables of the page: --so-ink (default --cinnabar, else a red), --so-ghost (default a mid grey that shows on light and on dark themes).
+  The record says how its lines were made: q 1 = they follow a real glyph (m 'r', 's', 'o'), q 0 = they were put together from the IDS (m 'i'): there they sit only about
+  where the glyph has its strokes, so every stroke but the last fades while the next ones are drawn (two or three are to be seen at a time), which hides it. Where the lines
+  follow a real glyph the strokes stay, and the drawing ends as the black glyph. The look comes from CSS variables of the page: --so-ink (default --cinnabar, else a red),
+  --so-ghost (default a mid grey that shows on light and on dark themes), --so-width (the width of the line in the 200 frame, 9: about the width of a stroke of the glyph).
 */
 (() => {
 const BASE = 'https://cdn.qatt.org/stroke/r1/';
@@ -31,9 +34,9 @@ function addCss() {
   style.textContent = `
 .so-svg { display: block; width: 100%; height: 100%; --so-fade-to: 0; stroke: none; stroke-width: 0; }   /* no outline: a page may give every svg one, which showed as dark edges on the glyph */
 .so-svg .so-ghost { fill: var(--so-ghost, #8a8a8a); fill-opacity: .42; stroke: none; stroke-width: 0; }
-.so-svg .so-s { fill: none; stroke: var(--so-ink, var(--cinnabar, #a8362a)); stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1;
+.so-svg .so-s { fill: none; stroke: var(--so-ink, var(--cinnabar, #a8362a)); stroke-width: var(--so-width, 9); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1;
   animation: so-draw var(--t) ease-in-out var(--b) forwards, so-fade var(--fd) linear var(--e) forwards; }
-.so-svg .so-s.so-last { animation: so-draw var(--t) ease-in-out var(--b) forwards; }
+.so-svg .so-s.so-last, .so-svg .so-s.so-keep { animation: so-draw var(--t) ease-in-out var(--b) forwards; }
 .so-svg .so-n { opacity: 0; animation: so-pop .15s var(--a) forwards; }
 .so-svg .so-n circle { fill: var(--so-ink, var(--cinnabar, #a8362a)); stroke: #fff; stroke-width: 1.2; }
 .so-svg .so-n text { fill: #fff; font: 700 8.5px system-ui, sans-serif; text-anchor: middle; }
@@ -66,10 +69,11 @@ function build(rec, o = {}) {
     slots.push({ gi, first, end: t, lines });
     t += 0.18 / speed;
   });
-  const mean = (t - 0.3) / Math.max(1, groups.length), fade = Math.max(0.6, mean * 2.5);   // two or three strokes are to be seen at a time
+  const mean = (t - 0.3) / Math.max(1, groups.length), fade = Math.max(0.6 / speed, mean * 2.5);   // two or three strokes are to be seen at a time
+  const keep = o.fade != null ? !o.fade : rec.q === 1;   // lines that follow a real glyph need no hiding
   slots.forEach(s => {
     s.lines.forEach(l => {
-      const p = el('path', { class: 'so-s' + (s.gi === groups.length - 1 ? ' so-last' : ''), pathLength: 1, d: rec.L[l.j] }, svg);
+      const p = el('path', { class: 'so-s' + (s.gi === groups.length - 1 ? ' so-last' : keep ? ' so-keep' : ''), pathLength: 1, d: rec.L[l.j] }, svg);
       p.style.cssText = `--b:${l.b.toFixed(2)}s;--t:${l.d.toFixed(2)}s;--e:${s.end.toFixed(2)}s;--fd:${fade.toFixed(2)}s`;
     });
     if (o.numbers) {
