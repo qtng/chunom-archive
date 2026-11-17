@@ -47,8 +47,10 @@ ol.senses li { margin: .35rem 0; }
 .badge-new { font-size: .7rem; font-weight: 700; color: #fff; background: var(--b-red); border-radius: 4px; padding: 0 .35rem; margin-left: .3rem; }
 .reg { font-size: .72rem; color: var(--b-muted); border: 1px solid var(--b-line); border-radius: 4px; padding: 0 .3rem; margin-left: .3rem; }
 .n { font-size: .75rem; color: var(--b-muted); margin-left: .3rem; }
-.nom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 1.35rem; line-height: 1; border: 1px solid var(--b-line); background: var(--b-field); border-radius: 6px;
+.nom { font-family: var(--font-cjk, "QATT Pen"), "Nom Na Tong Supplement", serif; font-size: 2rem; line-height: 1.1; border: 1px solid var(--b-line); background: var(--b-field); border-radius: 6px;
   padding: .15rem .35rem; margin-left: .35rem; color: var(--b-ink); vertical-align: -2px; cursor: pointer; }
+.snom { margin-right: .4rem; }
+.snom .nom { margin: .1rem .25rem .1rem 0; }
 .nom.nom-src { border-color: #b9d3c6; }   /* only a source (dict.csv, …) gives it, not the labelling run */
 .nom:hover { border-color: var(--b-red); color: var(--b-red); }
 details { font-size: .85rem; margin-top: .35rem; }
@@ -76,10 +78,11 @@ details .entry { margin: .25rem 0 .25rem 1rem; }
 .pager button { border: 1px solid var(--b-line); background: var(--b-field); border-radius: 6px; padding: .15rem .7rem; color: var(--b-ink); }
 .pager button:disabled { color: var(--b-line); }
 .pager input { width: 4.2rem; text-align: center; }
-.wnom { margin-top: .3rem; font-size: .85rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; }
+.wnom { margin-top: .4rem; font-size: .85rem; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; }
 .wnom > b { font-size: .78rem; color: var(--b-muted); font-weight: 600; margin-right: .2rem; }
 .sp { display: inline-block; }
-.sp .nom { margin-left: 0; }
+.sp .nom { margin-left: 0; font-size: 2.8rem; padding: .2rem .5rem; }   /* the spelling of the whole word: the most important thing of the entry */
+.wnom .sp { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
 .tag { font-size: .7rem; border-radius: 4px; padding: 0 .35rem; margin-left: .25rem; vertical-align: 1px; border: 1px solid var(--b-line); color: var(--b-muted); white-space: nowrap; }
 .v-ok { color: var(--b-green); border-color: #b9d3c6; }
 .v-variant { color: #8a6d1f; border-color: #e3d29a; background: #fbf4dc; }
@@ -247,9 +250,9 @@ function origin(src, [agree, resolved, disputed, single]) {
 function renderWord(w) {
   const total = w.s.reduce((a, s) => a + s[6], 0) || 1;
   const senses = el('ol', { className: 'senses' }, w.s.map(([pos, gloss, def, reg, eid, nom, n, src, cs, from]) => el('li', {},
+    nom ? el('span', { className: 'snom' }, nom.split(/[ ,;\/]+/).filter(Boolean).map(ch => nomButton(ch, (from || {})[ch]))) : null,
     el('span', { className: 'pos' }, pos || '?'), el('span', { className: 'gloss' }, gloss),
     reg ? el('span', { className: 'reg' }, reg) : null,
-    nom ? nom.split(/[ ,;\/]+/).filter(Boolean).map(ch => nomButton(ch, (from || {})[ch])) : null,
     src === 'dict' ? null : el('span', { className: 'n', title: L('occurrences in the example sentences', 'số lần gặp trong các câu ví dụ') }, `${n}× · ${Math.round(100 * n / total)} %`),
     src && src !== 'dict' ? origin(src, cs) : null,
     el('div', { className: 'def' }, def),
